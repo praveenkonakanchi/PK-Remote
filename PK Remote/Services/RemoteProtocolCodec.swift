@@ -4,6 +4,7 @@ nonisolated enum RemoteProtocolMessage: Equatable, Sendable {
     case configure
     case setActive(Int)
     case ping(Int)
+    case imeBatchEdit(imeCounter: Int, fieldCounter: Int)
     case other
 }
 
@@ -51,6 +52,28 @@ nonisolated struct RemoteProtocolCodec: Sendable {
         )
     }
 
+    static func text(_ text: String, imeCounter: Int, fieldCounter: Int) throws -> Data {
+        guard !text.isEmpty else { throw RemoteCommandTransportError.unsupportedCommand }
+        let finalIndex = max(0, text.unicodeScalars.count - 1)
+        let imeObject = message([
+            field(1, varint: UInt64(finalIndex)),
+            field(2, varint: UInt64(finalIndex)),
+            field(3, string: text)
+        ])
+        let editInfo = message([
+            field(1, varint: 1),
+            field(2, bytes: imeObject)
+        ])
+        return envelope(
+            field: 21,
+            payload: message([
+                field(1, varint: UInt64(imeCounter)),
+                field(2, varint: UInt64(fieldCounter)),
+                field(3, bytes: editInfo)
+            ])
+        )
+    }
+
     static func decode(_ data: Data) throws -> RemoteProtocolMessage {
         var reader = RemoteProtobufReader(data: data)
         while let entry = try reader.next() {
@@ -62,6 +85,12 @@ nonisolated struct RemoteProtocolCodec: Sendable {
                 return .setActive(try firstVarint(in: payload))
             case 8:
                 return .ping(try firstVarint(in: payload))
+            case 21:
+                let counters = try imeCounters(in: payload)
+                return .imeBatchEdit(
+                    imeCounter: counters.imeCounter,
+                    fieldCounter: counters.fieldCounter
+                )
             default:
                 continue
             }
@@ -96,6 +125,18 @@ nonisolated struct RemoteProtocolCodec: Sendable {
         }
         // Proto3 omits scalar fields whose value is zero.
         return 0
+    }
+
+    private static func imeCounters(in data: Data) throws -> (imeCounter: Int, fieldCounter: Int) {
+        var imeCounter = 0
+        var fieldCounter = 0
+        var reader = RemoteProtobufReader(data: data)
+        while let entry = try reader.next() {
+            guard case .varint(let value) = entry.value else { continue }
+            if entry.number == 1 { imeCounter = Int(value) }
+            if entry.number == 2 { fieldCounter = Int(value) }
+        }
+        return (imeCounter, fieldCounter)
     }
 
     private static func message(_ fields: [Data]) -> Data {
@@ -161,22 +202,23 @@ nonisolated private enum AndroidTVKeyCode: Int {
     case volumeDown = 25
     case power = 26
     case menu = 82
-    case search = 84
     case playPause = 85
     case next = 87
     case previous = 88
     case rewind = 89
     case fastForward = 90
     case mute = 91
-    case info = 165
-    case bookmark = 174
+    case programRed = 183
+    case programGreen = 184
+    case programYellow = 185
+    case programBlue = 186
 
     init?(command: RemoteCommand) {
         switch command {
         case .power: self = .power
         case .home: self = .home
         case .back: self = .back
-        case .menu, .sort: self = .menu
+        case .menu: self = .menu
         case .up: self = .up
         case .down: self = .down
         case .left: self = .left
@@ -194,9 +236,11 @@ nonisolated private enum AndroidTVKeyCode: Int {
         case .next: self = .next
         case .rewind: self = .rewind
         case .fastForward: self = .fastForward
-        case .search: self = .search
-        case .view: self = .info
-        case .favorites: self = .bookmark
+        case .view: self = .programRed
+        case .sort: self = .programGreen
+        case .favorites: self = .programYellow
+        case .find: self = .programBlue
+        case .text: return nil
         }
     }
 }
