@@ -31,8 +31,26 @@ struct RemoteButton: View {
             .foregroundStyle(prominence ? Color.white : Color.primary)
             .background(prominence ? Color.indigo : Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(RemotePressedButtonStyle(prominence: prominence))
         .accessibilityLabel(command.accessibilityLabel)
+    }
+}
+
+struct RemotePressedButtonStyle: ButtonStyle {
+    let prominence: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.93 : 1)
+            .brightness(configuration.isPressed ? (prominence ? 0.12 : -0.12) : 0)
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        Color.indigo.opacity(configuration.isPressed ? 0.9 : 0),
+                        lineWidth: 3
+                    )
+            }
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
     }
 }
 
