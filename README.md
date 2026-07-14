@@ -1,26 +1,48 @@
 # PK Remote
 
-An open-source Google TV / Android TV remote built with SwiftUI.
+An open-source, modern Google TV / Android TV remote for iPhone, built with SwiftUI.
 
-## Features
+## ✨ Features
 
-- 📺 Automatic Google TV discovery
-- 🔐 Secure pairing
-- 🎮 Remote controls
+- 📺 Automatic Google TV / Android TV discovery
+- 🔐 Secure pairing with pairing code
+- 🎮 Full remote controls
 - ⌨️ Built-in keyboard
-- ▶️ Media controls
-- ⭐ STBEmu mode
+- ▶️ Media controls (Play, Pause, Stop, FF, Rewind)
+- 🔍 One-tap search
+- ⭐ STB mode (optimized for IPTV users)
 - 🚫 No ads
-- 🆓 Open source
+- 🆓 Completely free & open source
 
-## Screenshots
+## 📱 Screenshots
 
-(Coming soon)
+*Coming soon*
 
-## Roadmap
+## 🚀 Roadmap
 
-- [ ] Device Discovery
+- [ ] Device discovery
 - [ ] Pairing
-- [ ] Remote
+- [ ] Remote controls
 - [ ] Keyboard
-- [ ] STBEmu Mode
+- [ ] Media controls
+- [ ] STBEmu mode
+- [ ] Favorites
+- [ ] Voice search
+- [ ] Multiple TV support
+- [ ] App Store release
+
+## 🛠 Tech Stack
+
+- SwiftUI
+- Swift Concurrency
+- Google TV Remote Protocol
+- Bonjour (mDNS)
+- Network Framework
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open an issue or submit a pull request.
+
+## 📄 License
+
+MIT License
