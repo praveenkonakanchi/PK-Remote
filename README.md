@@ -107,4 +107,4 @@ When contributing connectivity features, do not commit pairing secrets, certific
 
 ## License
 
-An explicit license file still needs to be added before the first public release. Until then, standard copyright applies.
+PK Remote is available under the [MIT License](LICENSE).
