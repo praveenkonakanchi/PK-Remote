@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct PK_RemoteApp: App {
+    @State private var appState = AppState()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(appState: appState)
         }
     }
 }

@@ -1,20 +1,22 @@
 import SwiftUI
 
 struct ContentView: View {
+    let appState: AppState
+
     var body: some View {
         TabView {
-            DevicesView()
+            DevicesView(appState: appState)
                 .tabItem { Label("Devices", systemImage: "tv") }
 
-            RemoteView()
+            RemoteView(appState: appState)
                 .tabItem { Label("Remote", systemImage: "dot.radiowaves.left.and.right") }
 
-            STBModeView()
+            STBModeView(appState: appState)
                 .tabItem { Label("STB Mode", systemImage: "rectangle.grid.2x2") }
         }
         .tint(.indigo)
     }
 }
 
-#Preview("Light") { ContentView() }
-#Preview("Dark") { ContentView().preferredColorScheme(.dark) }
+#Preview("Light") { ContentView(appState: AppState()) }
+#Preview("Dark") { ContentView(appState: AppState()).preferredColorScheme(.dark) }

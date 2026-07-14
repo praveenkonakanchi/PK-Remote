@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct STBModeView: View {
-    @State private var lastCommand = "Ready"
+    let appState: AppState
 
     private let actions: [(RemoteCommand, String, String)] = [
         (.search, "Search", "magnifyingglass"),
@@ -14,10 +14,10 @@ struct STBModeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
-                    Text("PKD").font(.title2.bold()).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(appState.selectedDevice?.name ?? "No device").font(.title2.bold()).frame(maxWidth: .infinity, alignment: .leading)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         ForEach(actions, id: \.0) { command, title, icon in
-                            Button { lastCommand = command.accessibilityLabel } label: {
+                            Button { send(command) } label: {
                                 VStack(spacing: 10) {
                                     Image(systemName: icon).font(.title2)
                                     Text(title).font(.headline)
@@ -29,16 +29,20 @@ struct STBModeView: View {
                             .accessibilityLabel(command.accessibilityLabel)
                         }
                     }
-                    DPadView { lastCommand = $0.accessibilityLabel }
-                    MediaControlsView { lastCommand = $0.accessibilityLabel }
-                    Text("Last action: \(lastCommand)").font(.footnote).foregroundStyle(.secondary)
+                    DPadView(action: send)
+                    MediaControlsView(action: send)
+                    Text("Last action: \(appState.lastActionDescription)").font(.footnote).foregroundStyle(.secondary)
                 }
                 .padding()
             }
             .navigationTitle("STB Mode")
         }
     }
+
+    private func send(_ command: RemoteCommand) {
+        Task { await appState.send(command) }
+    }
 }
 
-#Preview("Light") { STBModeView() }
-#Preview("Dark") { STBModeView().preferredColorScheme(.dark) }
+#Preview("Light") { STBModeView(appState: AppState()) }
+#Preview("Dark") { STBModeView(appState: AppState()).preferredColorScheme(.dark) }
