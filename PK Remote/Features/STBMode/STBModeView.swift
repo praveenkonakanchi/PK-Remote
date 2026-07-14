@@ -3,18 +3,32 @@ import SwiftUI
 struct STBModeView: View {
     let appState: AppState
 
-    private let actions: [(RemoteCommand, String, String)] = [
-        (.search, "Search", "magnifyingglass"),
-        (.view, "View", "rectangle.grid.2x2"),
-        (.sort, "Sort", "arrow.up.arrow.down"),
-        (.favorites, "Favorites", "star.fill")
+    private let actions: [(command: RemoteCommand, title: String, color: Color)] = [
+        (.view, "View", .red),
+        (.sort, "Sort", .green),
+        (.favorites, "Favorites", .yellow),
+        (.find, "Find", .blue)
     ]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
-                    Text(appState.selectedDevice?.name ?? "No device").font(.title2.bold()).frame(maxWidth: .infinity, alignment: .leading)
+                VStack(spacing: 12) {
+                    DPadView(action: send)
+                        .disabled(!appState.isSelectedDevicePaired)
+                    HStack(spacing: 10) {
+                        RemoteButton(.back, title: "Back", action: send)
+                        RemoteButton(.menu, title: "Settings", action: send)
+                    }
+                    .disabled(!appState.isSelectedDevicePaired)
+                    HStack(spacing: 8) {
+                        ForEach(actions, id: \.command) { action in
+                            portalButton(action)
+                        }
+                    }
+                    .disabled(!appState.isSelectedDevicePaired)
+                    MediaControlsView(action: send)
+                        .disabled(!appState.isSelectedDevicePaired)
                     if !appState.isSelectedDevicePaired {
                         Label(
                             "Pair this TV from Devices to enable STB controls.",
@@ -24,25 +38,6 @@ struct STBModeView: View {
                         .foregroundStyle(.orange)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(actions, id: \.0) { command, title, icon in
-                            Button { send(command) } label: {
-                                VStack(spacing: 10) {
-                                    Image(systemName: icon).font(.title2)
-                                    Text(title).font(.headline)
-                                }
-                                .frame(maxWidth: .infinity, minHeight: 100)
-                                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-                            }
-                            .buttonStyle(RemotePressedButtonStyle(prominence: false))
-                            .accessibilityLabel(command.accessibilityLabel)
-                        }
-                    }
-                    .disabled(!appState.isSelectedDevicePaired)
-                    DPadView(action: send)
-                        .disabled(!appState.isSelectedDevicePaired)
-                    MediaControlsView(action: send)
-                        .disabled(!appState.isSelectedDevicePaired)
                     if let commandError = appState.commandError {
                         Label(commandError, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
@@ -50,12 +45,35 @@ struct STBModeView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .accessibilityLabel("Remote error: \(commandError)")
                     }
-                    Text("Last action: \(appState.lastActionDescription)").font(.footnote).foregroundStyle(.secondary)
                 }
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
+            .scrollIndicators(.hidden)
             .navigationTitle("STB Mode")
+            .navigationBarTitleDisplayMode(.inline)
         }
+    }
+
+    private func portalButton(
+        _ action: (command: RemoteCommand, title: String, color: Color)
+    ) -> some View {
+        Button { send(action.command) } label: {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(action.color)
+                    .frame(width: 11, height: 11)
+                Text(action.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+            }
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .foregroundStyle(Color.primary)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(RemotePressedButtonStyle(prominence: false))
+        .accessibilityLabel(action.command.accessibilityLabel)
     }
 
     private func send(_ command: RemoteCommand) {

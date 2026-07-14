@@ -17,6 +17,25 @@ struct RemoteProtocolCodecTests {
         #expect(frame == Data([0x06, 0x52, 0x04, 0x08, 0x10, 0x10, 0x03]))
     }
 
+    @Test func stbPortalActionsUseAndroidProgrammableColorKeys() throws {
+        #expect(
+            RemoteProtocolCodec.frame(try RemoteProtocolCodec.key(.view))
+                == Data([0x07, 0x52, 0x05, 0x08, 0xb7, 0x01, 0x10, 0x03])
+        )
+        #expect(
+            RemoteProtocolCodec.frame(try RemoteProtocolCodec.key(.sort))
+                == Data([0x07, 0x52, 0x05, 0x08, 0xb8, 0x01, 0x10, 0x03])
+        )
+        #expect(
+            RemoteProtocolCodec.frame(try RemoteProtocolCodec.key(.favorites))
+                == Data([0x07, 0x52, 0x05, 0x08, 0xb9, 0x01, 0x10, 0x03])
+        )
+        #expect(
+            RemoteProtocolCodec.frame(try RemoteProtocolCodec.key(.find))
+                == Data([0x07, 0x52, 0x05, 0x08, 0xba, 0x01, 0x10, 0x03])
+        )
+    }
+
     @Test func pingRequestIsDecodedAndAnswered() throws {
         var frame = Data([0x04, 0x42, 0x02, 0x08, 0x2a])
         let payload = try #require(try RemoteProtocolCodec.extractFrame(from: &frame))

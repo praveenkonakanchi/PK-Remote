@@ -161,22 +161,23 @@ nonisolated private enum AndroidTVKeyCode: Int {
     case volumeDown = 25
     case power = 26
     case menu = 82
-    case search = 84
     case playPause = 85
     case next = 87
     case previous = 88
     case rewind = 89
     case fastForward = 90
     case mute = 91
-    case info = 165
-    case bookmark = 174
+    case programRed = 183
+    case programGreen = 184
+    case programYellow = 185
+    case programBlue = 186
 
     init?(command: RemoteCommand) {
         switch command {
         case .power: self = .power
         case .home: self = .home
         case .back: self = .back
-        case .menu, .sort: self = .menu
+        case .menu: self = .menu
         case .up: self = .up
         case .down: self = .down
         case .left: self = .left
@@ -194,9 +195,10 @@ nonisolated private enum AndroidTVKeyCode: Int {
         case .next: self = .next
         case .rewind: self = .rewind
         case .fastForward: self = .fastForward
-        case .search: self = .search
-        case .view: self = .info
-        case .favorites: self = .bookmark
+        case .view: self = .programRed
+        case .sort: self = .programGreen
+        case .favorites: self = .programYellow
+        case .find: self = .programBlue
         }
     }
 }

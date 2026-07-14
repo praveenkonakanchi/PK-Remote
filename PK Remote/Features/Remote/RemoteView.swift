@@ -6,7 +6,7 @@ struct RemoteView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 22) {
+                VStack(spacing: 12) {
                     deviceHeader
                     if !appState.isSelectedDevicePaired {
                         Label(
@@ -27,9 +27,9 @@ struct RemoteView: View {
                         .disabled(!appState.isSelectedDevicePaired)
                     volumeControls
                         .disabled(!appState.isSelectedDevicePaired)
-                    NumberPadView(action: handle)
-                        .disabled(!appState.isSelectedDevicePaired)
                     MediaControlsView(action: handle)
+                        .disabled(!appState.isSelectedDevicePaired)
+                    NumberPadView(action: handle)
                         .disabled(!appState.isSelectedDevicePaired)
                     if let commandError = appState.commandError {
                         Label(commandError, systemImage: "exclamationmark.triangle.fill")
@@ -38,25 +38,29 @@ struct RemoteView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .accessibilityLabel("Remote error: \(commandError)")
                     }
-                    Text("Last action: \(appState.lastActionDescription)")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
+            .scrollIndicators(.hidden)
             .navigationTitle("Remote")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
     private var deviceHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(appState.selectedDevice?.name ?? "No device").font(.title2.bold())
-                Text(appState.selectedDevice?.kind ?? "Select a device").foregroundStyle(.secondary)
-            }
+        HStack(spacing: 10) {
+            Image(systemName: "tv.fill")
+                .foregroundStyle(.indigo)
+            Text(appState.selectedDevice?.name ?? "No device")
+                .font(.headline)
+                .lineLimit(1)
             Spacer()
             pairingStatus
         }
-        .padding().background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 
     @ViewBuilder
