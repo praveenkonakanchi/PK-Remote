@@ -20,19 +20,22 @@ final class AppState {
     private let commandHandler: any RemoteCommandHandling
     private let deviceDiscovery: any DeviceDiscovering
     private let pairingService: any DevicePairingService
+    private let pairingCredentials: any PairingCredentialChecking
 
     init(
         devices: [RemoteDevice] = [],
         selectedDeviceID: RemoteDevice.ID? = nil,
         commandHandler: (any RemoteCommandHandling)? = nil,
         deviceDiscovery: (any DeviceDiscovering)? = nil,
-        pairingService: (any DevicePairingService)? = nil
+        pairingService: (any DevicePairingService)? = nil,
+        pairingCredentials: (any PairingCredentialChecking)? = nil
     ) {
         self.devices = devices
         self.selectedDeviceID = selectedDeviceID
-        self.commandHandler = commandHandler ?? LocalRemoteCommandHandler()
+        self.commandHandler = commandHandler ?? GoogleTVRemoteCommandService()
         self.deviceDiscovery = deviceDiscovery ?? BonjourDeviceDiscovery()
         self.pairingService = pairingService ?? GoogleTVPairingService()
+        self.pairingCredentials = pairingCredentials ?? PairingCredentialStore()
     }
 
     var selectedDevice: RemoteDevice? {
@@ -43,12 +46,19 @@ final class AppState {
         lastCommand?.accessibilityLabel ?? "Ready"
     }
 
+    var isSelectedDevicePaired: Bool {
+        selectedDevice.map { pairingState(for: $0) == .paired } ?? false
+    }
+
     func select(_ device: RemoteDevice) {
         selectedDeviceID = device.id
     }
 
     func pairingState(for device: RemoteDevice) -> DevicePairingState {
-        pairingStates[device.id] ?? .unpaired
+        if let transientState = pairingStates[device.id] {
+            return transientState
+        }
+        return pairingCredentials.isPaired(deviceID: device.id) ? .paired : .unpaired
     }
 
     func requestPairingCode(for device: RemoteDevice) async {
@@ -83,13 +93,23 @@ final class AppState {
 
     func cancelPairing(for device: RemoteDevice) async {
         await pairingService.cancelPairing(for: device)
-        pairingStates[device.id] = .unpaired
+        pairingStates[device.id] = pairingCredentials.isPaired(deviceID: device.id)
+            ? .paired
+            : .unpaired
     }
 
     func send(_ command: RemoteCommand) async {
         commandError = nil
+        guard let selectedDevice else {
+            commandError = "Select a TV before sending a command."
+            return
+        }
+        guard pairingState(for: selectedDevice) == .paired else {
+            commandError = "Pair this TV from Devices before using the remote."
+            return
+        }
         do {
-            try await commandHandler.send(command)
+            try await commandHandler.send(command, to: selectedDevice)
             lastCommand = command
         } catch {
             commandError = error.localizedDescription
@@ -117,7 +137,9 @@ final class AppState {
         case .success(let discoveredDevices):
             devices = Self.deduplicated(discoveredDevices)
             if !devices.contains(where: { $0.id == selectedDeviceID }) {
-                selectedDeviceID = devices.first?.id
+                selectedDeviceID = devices.first(where: {
+                    pairingCredentials.isPaired(deviceID: $0.id)
+                })?.id ?? devices.first?.id
             }
             discoveryState = .idle
         case .failure(let error):
@@ -134,6 +156,7 @@ final class AppState {
         AppState(
             devices: [.placeholder],
             selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: LocalRemoteCommandHandler(),
             deviceDiscovery: PlaceholderDeviceDiscovery(),
             pairingService: PreviewDevicePairingService()
         )

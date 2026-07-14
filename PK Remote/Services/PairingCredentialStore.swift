@@ -1,6 +1,10 @@
 import Foundation
 import Security
 
+nonisolated protocol PairingCredentialChecking: Sendable {
+    func isPaired(deviceID: RemoteDevice.ID) -> Bool
+}
+
 nonisolated struct PairingCredentialStore: Sendable {
     private static let service = "com.pk.PK-Remote.google-tv-certificate-fingerprint.v1"
 
@@ -44,5 +48,11 @@ nonisolated struct PairingCredentialStore: Sendable {
             kSecAttrService: Self.service,
             kSecAttrAccount: String(describing: deviceID)
         ]
+    }
+}
+
+extension PairingCredentialStore: PairingCredentialChecking {
+    func isPaired(deviceID: RemoteDevice.ID) -> Bool {
+        (try? fingerprint(for: deviceID)) != nil
     }
 }

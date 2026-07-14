@@ -1,9 +1,7 @@
 protocol RemoteCommandHandling: Sendable {
-    func send(_ command: RemoteCommand) async throws
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws
 }
 
 struct LocalRemoteCommandHandler: RemoteCommandHandling {
-    func send(_ command: RemoteCommand) async throws {
-        // Intentionally local-only until a remote transport milestone is implemented.
-    }
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {}
 }

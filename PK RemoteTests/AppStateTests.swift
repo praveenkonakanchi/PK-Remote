@@ -15,7 +15,12 @@ struct AppStateTests {
 
     @Test func forwardsCommandsAndRecordsSuccessfulAction() async {
         let handler = RecordingCommandHandler()
-        let state = AppState(commandHandler: handler)
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: handler,
+            pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
+        )
 
         await state.send(.volumeUp)
 
@@ -26,7 +31,12 @@ struct AppStateTests {
     }
 
     @Test func preservesLastCommandWhenSendingFails() async {
-        let state = AppState(commandHandler: FailingCommandHandler())
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: FailingCommandHandler(),
+            pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
+        )
 
         await state.send(.power)
 
@@ -47,6 +57,38 @@ struct AppStateTests {
         #expect(state.devices == [livingRoom])
         #expect(state.selectedDevice == livingRoom)
         #expect(state.discoveryState == .idle)
+    }
+
+    @Test func discoveryPrefersPersistentlyPairedDevice() async {
+        let unpaired = RemoteDevice(name: "My bedroom TV")
+        let paired = RemoteDevice(name: "peekay TV")
+        let discovery = StubDeviceDiscovery()
+        let state = AppState(
+            deviceDiscovery: discovery,
+            pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [paired.id])
+        )
+
+        state.startDiscovery()
+        discovery.send(.success([unpaired, paired]))
+        await settle()
+
+        #expect(state.selectedDevice == paired)
+        #expect(state.isSelectedDevicePaired)
+    }
+
+    @Test func commandIsRejectedBeforeTransportForUnpairedDevice() async {
+        let handler = RecordingCommandHandler()
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: handler,
+            pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [])
+        )
+
+        await state.send(.home)
+
+        #expect(await handler.commands.isEmpty)
+        #expect(state.commandError == "Pair this TV from Devices before using the remote.")
     }
 
     @Test func discoveryExposesFailureWithoutDiscardingDevices() async {
@@ -82,6 +124,26 @@ struct AppStateTests {
         await state.submitPairingCode(" 61a2c9\n", for: .placeholder)
         #expect(state.pairingState(for: .placeholder) == .paired)
         #expect(await pairing.submittedCodes == ["61A2C9"])
+    }
+
+    @Test func restoresPairedStateFromPersistedCredential() {
+        let state = AppState(
+            devices: [.placeholder],
+            pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
+        )
+
+        #expect(state.pairingState(for: .placeholder) == .paired)
+    }
+
+    @Test func differentDeviceRemainsUnpaired() {
+        let other = RemoteDevice(name: "Other TV")
+        let state = AppState(
+            devices: [.placeholder, other],
+            pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
+        )
+
+        #expect(state.pairingState(for: .placeholder) == .paired)
+        #expect(state.pairingState(for: other) == .unpaired)
     }
 
     @Test func pairingRejectsInvalidCodeBeforeCallingService() async {
@@ -124,13 +186,13 @@ struct AppStateTests {
 private actor RecordingCommandHandler: RemoteCommandHandling {
     private(set) var commands: [RemoteCommand] = []
 
-    func send(_ command: RemoteCommand) async throws {
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
         commands.append(command)
     }
 }
 
 private struct FailingCommandHandler: RemoteCommandHandling {
-    func send(_ command: RemoteCommand) async throws {
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
         throw TestFailure.command
     }
 }
@@ -181,4 +243,12 @@ private struct FailingPairingService: DevicePairingService {
     }
 
     func cancelPairing(for device: RemoteDevice) async {}
+}
+
+private struct StubPairingCredentials: PairingCredentialChecking {
+    let pairedDeviceIDs: Set<RemoteDevice.ID>
+
+    func isPaired(deviceID: RemoteDevice.ID) -> Bool {
+        pairedDeviceIDs.contains(deviceID)
+    }
 }
