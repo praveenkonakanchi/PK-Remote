@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CC0000010000000000000000 /* X509 in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000030000000000000000 /* X509 */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		BB0000070000000000000000 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -39,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC0000010000000000000000 /* X509 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,6 +95,7 @@
 			);
 			name = "PK Remote";
 			packageProductDependencies = (
+				CC0000030000000000000000 /* X509 */,
 			);
 			productName = "PK Remote";
 			productReference = AA76D761300645D200DE992B /* PK Remote.app */;
@@ -148,6 +154,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AA76D762300645D200DE992B /* Products */;
+			packageReferences = (
+				CC0000020000000000000000 /* XCRemoteSwiftPackageReference "swift-certificates" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -458,6 +467,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CC0000020000000000000000 /* XCRemoteSwiftPackageReference "swift-certificates" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-certificates.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.19.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CC0000030000000000000000 /* X509 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC0000020000000000000000 /* XCRemoteSwiftPackageReference "swift-certificates" */;
+			productName = X509;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AA76D759300645D200DE992B /* Project object */;
 }

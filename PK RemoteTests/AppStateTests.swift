@@ -79,18 +79,18 @@ struct AppStateTests {
         await state.requestPairingCode(for: .placeholder)
         #expect(state.pairingState(for: .placeholder) == .awaitingCode)
 
-        await state.submitPairingCode("123456", for: .placeholder)
+        await state.submitPairingCode(" 61a2c9\n", for: .placeholder)
         #expect(state.pairingState(for: .placeholder) == .paired)
-        #expect(await pairing.submittedCodes == ["123456"])
+        #expect(await pairing.submittedCodes == ["61A2C9"])
     }
 
     @Test func pairingRejectsInvalidCodeBeforeCallingService() async {
         let pairing = RecordingPairingService()
         let state = AppState(devices: [.placeholder], pairingService: pairing)
 
-        await state.submitPairingCode("12AB", for: .placeholder)
+        await state.submitPairingCode("12GZ", for: .placeholder)
 
-        #expect(state.pairingState(for: .placeholder) == .failed("Enter the 6-digit code shown on your TV."))
+        #expect(state.pairingState(for: .placeholder) == .failed("Enter the 6-character code shown on your TV."))
         #expect(await pairing.submittedCodes.isEmpty)
     }
 
@@ -105,14 +105,14 @@ struct AppStateTests {
         #expect(state.pairingState(for: .placeholder) == .unpaired)
     }
 
-    @Test func productionPairingDoesNotReportSuccessWithoutSecureTransport() async {
+    @Test func productionPairingRequiresDiscoveredServiceMetadata() async {
         let state = AppState(devices: [.placeholder])
 
         await state.requestPairingCode(for: .placeholder)
 
         #expect(
             state.pairingState(for: .placeholder)
-                == .failed("Secure pairing is not available yet.")
+                == .failed("The TV pairing service could not be resolved. Refresh Devices and try again.")
         )
     }
 

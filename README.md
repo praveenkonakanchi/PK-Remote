@@ -2,21 +2,23 @@
 
 PK Remote is an open-source Google TV and Android TV remote for iPhone, built with SwiftUI.
 
-The project currently provides a polished remote interface and discovers compatible TVs on the local network. Pairing and command transmission are planned but are not implemented yet.
+The project currently provides a polished remote interface, discovers compatible TVs on the local network, and securely pairs with Google TV devices. Remote command transmission is planned but is not implemented yet.
 
 ## Current Features
 
 - Devices, Remote, and STB Mode navigation
 - Google TV and Android TV discovery with Bonjour (mDNS)
 - Device searching, empty, error, refresh, and selection states
-- Device details and a testable pairing-code workflow
+- Secure Google TV pairing with a six-character on-screen code
+- Per-installation RSA client identity stored in the device-only Keychain
+- Paired TV certificate fingerprint stored for future connection verification
 - Directional pad with select, home, back, and power controls
 - Volume, mute, number-pad, and media controls
 - STB Mode shortcuts for Search, View, Sort, and Favorites
 - Semantic remote commands with harmless local actions
 - Accessibility labels and SwiftUI previews
 - Native light and dark appearance support
-- No third-party dependencies
+- Apple `swift-certificates` for X.509 certificate generation
 
 ## Screenshots
 
@@ -28,7 +30,7 @@ Screenshots are coming soon.
 - [x] Reusable remote-control components
 - [x] Accessible light and dark UI
 - [x] Google TV and Android TV discovery with Bonjour (mDNS)
-- [ ] Secure pairing with an on-screen pairing code
+- [x] Secure pairing with an on-screen pairing code
 - [ ] Google TV Remote Protocol integration
 - [ ] Remote command transmission
 - [ ] Keyboard input
@@ -42,18 +44,21 @@ Screenshots are coming soon.
 - Swift
 - SwiftUI
 - Xcode
-- Swift Concurrency *(planned for device communication)*
-- Network framework *(planned)*
-- Bonjour / mDNS *(planned)*
-- Google TV Remote Protocol *(planned)*
+- Swift Concurrency
+- Network framework
+- Bonjour / mDNS
+- Google TV pairing protocol
+- Apple `swift-certificates`
 
 ## Project Structure
 
 ```text
 PK Remote/
+├── App/              Shared application state
 ├── Components/       Reusable remote-control views
 ├── Features/         Devices, Remote, and STB Mode screens
 ├── Models/           Semantic remote command types
+├── Services/         Discovery, pairing, identity, and protocol services
 ├── Assets.xcassets/  App icons, colors, and image assets
 ├── ContentView.swift App navigation shell
 └── PK_RemoteApp.swift
@@ -71,7 +76,7 @@ PK Remote/
 3. Select an iPhone simulator or a development device.
 4. Build and run the `PK Remote` scheme.
 
-The buttons currently update local UI state only. The app can discover compatible TVs, but it does not pair with or control them yet.
+Remote buttons currently update local UI state only. Device discovery and secure pairing work on a local network; remote command transmission is the next protocol milestone.
 
 ## Contributing
 
