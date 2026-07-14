@@ -16,19 +16,43 @@ struct DevicesView: View {
                 }
             }
             .overlay {
-                if appState.devices.isEmpty && appState.discoveryState == .idle {
-                    ContentUnavailableView("No Devices", systemImage: "tv.slash", description: Text("Refresh to look for devices."))
-                }
+                emptyState
             }
             .navigationTitle("Devices")
             .toolbar {
                 Button {
-                    Task { await appState.discoverDevices() }
+                    appState.startDiscovery()
                 } label: {
                     if appState.discoveryState == .searching { ProgressView() }
                     else { Label("Refresh devices", systemImage: "arrow.clockwise") }
                 }
                 .disabled(appState.discoveryState == .searching)
+            }
+            .task {
+                if appState.devices.isEmpty && appState.discoveryState == .idle {
+                    appState.startDiscovery()
+                }
+            }
+            .onDisappear { appState.stopDiscovery() }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if appState.devices.isEmpty {
+            switch appState.discoveryState {
+            case .searching:
+                ContentUnavailableView {
+                    Label("Searching", systemImage: "antenna.radiowaves.left.and.right")
+                } description: {
+                    Text("Looking for Google TV devices on your local network.")
+                } actions: {
+                    ProgressView()
+                }
+            case .failed(let message):
+                ContentUnavailableView("Discovery Failed", systemImage: "exclamationmark.triangle", description: Text(message))
+            case .idle:
+                ContentUnavailableView("No Devices", systemImage: "tv.slash", description: Text("Make sure your TV is on and connected to the same Wi-Fi network."))
             }
         }
     }
@@ -59,4 +83,4 @@ struct DevicesView: View {
     }
 }
 
-#Preview { DevicesView(appState: AppState()) }
+#Preview { DevicesView(appState: .preview) }

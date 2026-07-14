@@ -44,5 +44,5 @@ struct STBModeView: View {
     }
 }
 
-#Preview("Light") { STBModeView(appState: AppState()) }
-#Preview("Dark") { STBModeView(appState: AppState()).preferredColorScheme(.dark) }
+#Preview("Light") { STBModeView(appState: .preview) }
+#Preview("Dark") { STBModeView(appState: .preview).preferredColorScheme(.dark) }

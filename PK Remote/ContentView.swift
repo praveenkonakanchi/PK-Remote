@@ -18,5 +18,5 @@ struct ContentView: View {
     }
 }
 
-#Preview("Light") { ContentView(appState: AppState()) }
-#Preview("Dark") { ContentView(appState: AppState()).preferredColorScheme(.dark) }
+#Preview("Light") { ContentView(appState: .preview) }
+#Preview("Dark") { ContentView(appState: .preview).preferredColorScheme(.dark) }

@@ -1,9 +1,18 @@
-protocol DeviceDiscovering: Sendable {
-    func discover() async throws -> [RemoteDevice]
+import Foundation
+
+@MainActor
+protocol DeviceDiscovering: AnyObject {
+    typealias UpdateHandler = @Sendable (Result<[RemoteDevice], Error>) -> Void
+
+    func start(onUpdate: @escaping UpdateHandler)
+    func stop()
 }
 
-struct PlaceholderDeviceDiscovery: DeviceDiscovering {
-    func discover() async throws -> [RemoteDevice] {
-        [.placeholder]
+@MainActor
+final class PlaceholderDeviceDiscovery: DeviceDiscovering {
+    func start(onUpdate: @escaping UpdateHandler) {
+        onUpdate(.success([.placeholder]))
     }
+
+    func stop() {}
 }

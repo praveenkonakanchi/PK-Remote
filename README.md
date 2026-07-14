@@ -2,12 +2,13 @@
 
 PK Remote is an open-source Google TV and Android TV remote for iPhone, built with SwiftUI.
 
-The project is currently in its first UI milestone: it provides a polished, static remote interface with local-only controls. Device discovery, pairing, and command transmission are planned but are not implemented yet.
+The project currently provides a polished remote interface and discovers compatible TVs on the local network. Pairing and command transmission are planned but are not implemented yet.
 
 ## Current Features
 
 - Devices, Remote, and STB Mode navigation
-- Placeholder Google TV device named **PKD**
+- Google TV and Android TV discovery with Bonjour (mDNS)
+- Device searching, empty, error, refresh, and selection states
 - Directional pad with select, home, back, and power controls
 - Volume, mute, number-pad, and media controls
 - STB Mode shortcuts for Search, View, Sort, and Favorites
@@ -25,7 +26,7 @@ Screenshots are coming soon.
 - [x] Static remote interface
 - [x] Reusable remote-control components
 - [x] Accessible light and dark UI
-- [ ] Google TV and Android TV discovery with Bonjour (mDNS)
+- [x] Google TV and Android TV discovery with Bonjour (mDNS)
 - [ ] Secure pairing with an on-screen pairing code
 - [ ] Google TV Remote Protocol integration
 - [ ] Remote command transmission
@@ -69,7 +70,7 @@ PK Remote/
 3. Select an iPhone simulator or a development device.
 4. Build and run the `PK Remote` scheme.
 
-The buttons currently update local UI state only. The app does not discover, pair with, or control a physical TV yet.
+The buttons currently update local UI state only. The app can discover compatible TVs, but it does not pair with or control them yet.
 
 ## Contributing
 

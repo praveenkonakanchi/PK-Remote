@@ -51,5 +51,5 @@ struct RemoteView: View {
     }
 }
 
-#Preview("Light") { RemoteView(appState: AppState()) }
-#Preview("Dark") { RemoteView(appState: AppState()).preferredColorScheme(.dark) }
+#Preview("Light") { RemoteView(appState: .preview) }
+#Preview("Dark") { RemoteView(appState: .preview).preferredColorScheme(.dark) }

@@ -20,15 +20,15 @@ final class AppState {
     private let deviceDiscovery: any DeviceDiscovering
 
     init(
-        devices: [RemoteDevice] = [.placeholder],
-        selectedDeviceID: RemoteDevice.ID? = RemoteDevice.placeholder.id,
-        commandHandler: any RemoteCommandHandling = LocalRemoteCommandHandler(),
-        deviceDiscovery: any DeviceDiscovering = PlaceholderDeviceDiscovery()
+        devices: [RemoteDevice] = [],
+        selectedDeviceID: RemoteDevice.ID? = nil,
+        commandHandler: (any RemoteCommandHandling)? = nil,
+        deviceDiscovery: (any DeviceDiscovering)? = nil
     ) {
         self.devices = devices
         self.selectedDeviceID = selectedDeviceID
-        self.commandHandler = commandHandler
-        self.deviceDiscovery = deviceDiscovery
+        self.commandHandler = commandHandler ?? LocalRemoteCommandHandler()
+        self.deviceDiscovery = deviceDiscovery ?? BonjourDeviceDiscovery()
     }
 
     var selectedDevice: RemoteDevice? {
@@ -53,16 +53,45 @@ final class AppState {
         }
     }
 
-    func discoverDevices() async {
+    func startDiscovery() {
         discoveryState = .searching
-        do {
-            devices = try await deviceDiscovery.discover()
+        deviceDiscovery.start { [weak self] result in
+            Task { @MainActor [weak self] in
+                self?.applyDiscoveryUpdate(result)
+            }
+        }
+    }
+
+    func stopDiscovery() {
+        deviceDiscovery.stop()
+        if discoveryState == .searching {
+            discoveryState = .idle
+        }
+    }
+
+    private func applyDiscoveryUpdate(_ result: Result<[RemoteDevice], Error>) {
+        switch result {
+        case .success(let discoveredDevices):
+            devices = Self.deduplicated(discoveredDevices)
             if !devices.contains(where: { $0.id == selectedDeviceID }) {
                 selectedDeviceID = devices.first?.id
             }
             discoveryState = .idle
-        } catch {
+        case .failure(let error):
             discoveryState = .failed(error.localizedDescription)
         }
+    }
+
+    private static func deduplicated(_ devices: [RemoteDevice]) -> [RemoteDevice] {
+        var seen = Set<RemoteDevice.ID>()
+        return devices.filter { seen.insert($0.id).inserted }
+    }
+
+    static var preview: AppState {
+        AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            deviceDiscovery: PlaceholderDeviceDiscovery()
+        )
     }
 }
