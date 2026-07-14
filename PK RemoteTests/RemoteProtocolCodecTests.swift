@@ -47,6 +47,28 @@ struct RemoteProtocolCodecTests {
         )
     }
 
+    @Test func imeCountersAreDecoded() throws {
+        let payload = Data([0xaa, 0x01, 0x04, 0x08, 0x05, 0x10, 0x07])
+
+        #expect(
+            try RemoteProtocolCodec.decode(payload)
+                == .imeBatchEdit(imeCounter: 5, fieldCounter: 7)
+        )
+    }
+
+    @Test func textUsesImeBatchEditWithCurrentCounters() throws {
+        let payload = try RemoteProtocolCodec.text("Hi", imeCounter: 5, fieldCounter: 7)
+
+        #expect(
+            RemoteProtocolCodec.frame(payload)
+                == Data([
+                    0x15, 0xaa, 0x01, 0x12, 0x08, 0x05, 0x10, 0x07, 0x1a, 0x0c,
+                    0x08, 0x01, 0x12, 0x08, 0x08, 0x01, 0x10, 0x01, 0x1a, 0x02,
+                    0x48, 0x69
+                ])
+        )
+    }
+
     @Test func frameExtractionRetainsPartialMessages() throws {
         let complete = RemoteProtocolCodec.frame(RemoteProtocolCodec.configure())
         var partial = Data(complete.dropLast())

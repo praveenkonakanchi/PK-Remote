@@ -7,6 +7,7 @@ enum RemoteCommand: Hashable, Sendable {
     case digit(Int)
     case previous, playPause, next, rewind, fastForward
     case view, sort, favorites, find
+    case text(String)
 
     var accessibilityLabel: String {
         switch self {
@@ -32,6 +33,7 @@ enum RemoteCommand: Hashable, Sendable {
         case .sort: "Sort"
         case .favorites: "Favorites"
         case .find: "Find"
+        case .text: "Enter text"
         }
     }
 }

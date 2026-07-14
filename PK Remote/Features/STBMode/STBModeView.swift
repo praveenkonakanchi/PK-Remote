@@ -2,6 +2,7 @@ import SwiftUI
 
 struct STBModeView: View {
     let appState: AppState
+    @State private var isKeyboardPresented = false
 
     private let actions: [(command: RemoteCommand, title: String, color: Color)] = [
         (.view, "View", .red),
@@ -13,12 +14,13 @@ struct STBModeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 12) {
+                VStack(spacing: 50) {
                     DPadView(action: send)
                         .disabled(!appState.isSelectedDevicePaired)
                     HStack(spacing: 10) {
-                        RemoteButton(.back, title: "Back", action: send)
-                        RemoteButton(.menu, title: "Settings", action: send)
+                        RemoteButton(.back, systemImage: "arrow.uturn.backward", action: send)
+                        keyboardButton
+                        RemoteButton(.menu, systemImage: "gearshape.fill", action: send)
                     }
                     .disabled(!appState.isSelectedDevicePaired)
                     HStack(spacing: 8) {
@@ -52,7 +54,27 @@ struct STBModeView: View {
             .scrollIndicators(.hidden)
             .navigationTitle("STB Mode")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $isKeyboardPresented) {
+                STBKeyboardSheet { text in
+                    send(.text(text))
+                }
+            }
         }
+    }
+
+    private var keyboardButton: some View {
+        Button { isKeyboardPresented = true } label: {
+            Image(systemName: "keyboard")
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .foregroundStyle(Color.primary)
+                .background(
+                    Color(.secondarySystemBackground),
+                    in: RoundedRectangle(cornerRadius: 16)
+                )
+        }
+        .buttonStyle(RemotePressedButtonStyle(prominence: false))
+        .accessibilityLabel("Keyboard")
     }
 
     private func portalButton(
@@ -78,6 +100,49 @@ struct STBModeView: View {
 
     private func send(_ command: RemoteCommand) {
         Task { await appState.send(command) }
+    }
+}
+
+private struct STBKeyboardSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var isFocused: Bool
+    @State private var text = ""
+    let onSend: (String) -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Select a text field on your TV, then enter text here.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                TextField("Enter text", text: $text, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isFocused)
+                    .submitLabel(.send)
+                    .onSubmit(sendText)
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Keyboard")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Send", action: sendText)
+                        .disabled(text.isEmpty)
+                }
+            }
+            .onAppear { isFocused = true }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func sendText() {
+        guard !text.isEmpty else { return }
+        onSend(text)
+        dismiss()
     }
 }
 

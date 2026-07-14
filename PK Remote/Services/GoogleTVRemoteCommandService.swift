@@ -97,6 +97,7 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
     private var connectionContinuation: CheckedContinuation<Void, Error>?
     private var monitorTask: Task<Void, Never>?
     private let health = RemoteSessionHealth()
+    private let imeState = RemoteIMEState()
 
     var isUsable: Bool { health.isUsable }
 
@@ -176,7 +177,19 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
     func send(_ command: RemoteCommand) async throws {
         print("[RemoteTransport] Sending \(command.accessibilityLabel)")
         Self.logger.debug("Sending command: \(command.accessibilityLabel, privacy: .public)")
-        try await sendPayload(RemoteProtocolCodec.key(command))
+        switch command {
+        case .text(let text):
+            let counters = imeState.counters
+            try await sendPayload(
+                RemoteProtocolCodec.text(
+                    text,
+                    imeCounter: counters.imeCounter,
+                    fieldCounter: counters.fieldCounter
+                )
+            )
+        default:
+            try await sendPayload(RemoteProtocolCodec.key(command))
+        }
     }
 
     func cancel() {
@@ -221,6 +234,8 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
             try await sendPayload(RemoteProtocolCodec.setActive(value))
         case .ping(let value):
             try await sendPayload(RemoteProtocolCodec.pingResponse(value))
+        case .imeBatchEdit(let imeCounter, let fieldCounter):
+            imeState.update(imeCounter: imeCounter, fieldCounter: fieldCounter)
         case .other:
             break
         }
@@ -320,5 +335,22 @@ nonisolated private final class RemoteSessionHealth: @unchecked Sendable {
     var isUsable: Bool {
         get { lock.withLock { value } }
         set { lock.withLock { value = newValue } }
+    }
+}
+
+nonisolated private final class RemoteIMEState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var imeCounter = 0
+    private var fieldCounter = 0
+
+    var counters: (imeCounter: Int, fieldCounter: Int) {
+        lock.withLock { (imeCounter, fieldCounter) }
+    }
+
+    func update(imeCounter: Int, fieldCounter: Int) {
+        lock.withLock {
+            self.imeCounter = imeCounter
+            self.fieldCounter = fieldCounter
+        }
     }
 }
