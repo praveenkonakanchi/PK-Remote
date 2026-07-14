@@ -72,6 +72,50 @@ struct AppStateTests {
         #expect(state.discoveryState == .idle)
     }
 
+    @Test func pairingTransitionsThroughCodeRequestToPaired() async {
+        let pairing = RecordingPairingService()
+        let state = AppState(devices: [.placeholder], pairingService: pairing)
+
+        await state.requestPairingCode(for: .placeholder)
+        #expect(state.pairingState(for: .placeholder) == .awaitingCode)
+
+        await state.submitPairingCode("123456", for: .placeholder)
+        #expect(state.pairingState(for: .placeholder) == .paired)
+        #expect(await pairing.submittedCodes == ["123456"])
+    }
+
+    @Test func pairingRejectsInvalidCodeBeforeCallingService() async {
+        let pairing = RecordingPairingService()
+        let state = AppState(devices: [.placeholder], pairingService: pairing)
+
+        await state.submitPairingCode("12AB", for: .placeholder)
+
+        #expect(state.pairingState(for: .placeholder) == .failed("Enter the 6-digit code shown on your TV."))
+        #expect(await pairing.submittedCodes.isEmpty)
+    }
+
+    @Test func pairingFailureIsExposedAndCanBeCancelled() async {
+        let pairing = FailingPairingService()
+        let state = AppState(devices: [.placeholder], pairingService: pairing)
+
+        await state.requestPairingCode(for: .placeholder)
+        #expect(state.pairingState(for: .placeholder) == .failed(TestFailure.pairing.localizedDescription))
+
+        await state.cancelPairing(for: .placeholder)
+        #expect(state.pairingState(for: .placeholder) == .unpaired)
+    }
+
+    @Test func productionPairingDoesNotReportSuccessWithoutSecureTransport() async {
+        let state = AppState(devices: [.placeholder])
+
+        await state.requestPairingCode(for: .placeholder)
+
+        #expect(
+            state.pairingState(for: .placeholder)
+                == .failed("Secure pairing is not available yet.")
+        )
+    }
+
     private func settle() async {
         for _ in 0..<10 { await Task.yield() }
     }
@@ -112,4 +156,29 @@ private final class StubDeviceDiscovery: DeviceDiscovering {
 private enum TestFailure: Error {
     case command
     case discovery
+    case pairing
+}
+
+private actor RecordingPairingService: DevicePairingService {
+    private(set) var submittedCodes: [String] = []
+
+    func requestPairingCode(for device: RemoteDevice) async throws {}
+
+    func pair(_ device: RemoteDevice, using code: String) async throws {
+        submittedCodes.append(code)
+    }
+
+    func cancelPairing(for device: RemoteDevice) async {}
+}
+
+private struct FailingPairingService: DevicePairingService {
+    func requestPairingCode(for device: RemoteDevice) async throws {
+        throw TestFailure.pairing
+    }
+
+    func pair(_ device: RemoteDevice, using code: String) async throws {
+        throw TestFailure.pairing
+    }
+
+    func cancelPairing(for device: RemoteDevice) async {}
 }
