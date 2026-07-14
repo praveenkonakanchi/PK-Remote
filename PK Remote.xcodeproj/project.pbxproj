@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		BB0000070000000000000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA76D759300645D200DE992B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA76D760300645D200DE992B;
+			remoteInfo = "PK Remote";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AA76D761300645D200DE992B /* PK Remote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PK Remote.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000010000000000000000 /* PK RemoteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "PK RemoteTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +27,22 @@
 			path = "PK Remote";
 			sourceTree = "<group>";
 		};
+		BB0000020000000000000000 /* PK RemoteTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "PK RemoteTests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA76D75E300645D200DE992B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000030000000000000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				AA76D763300645D200DE992B /* PK Remote */,
+				BB0000020000000000000000 /* PK RemoteTests */,
 				AA76D762300645D200DE992B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				AA76D761300645D200DE992B /* PK Remote.app */,
+				BB0000010000000000000000 /* PK RemoteTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +95,29 @@
 			productReference = AA76D761300645D200DE992B /* PK Remote.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BB0000060000000000000000 /* PK RemoteTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB00000B0000000000000000 /* Build configuration list for PBXNativeTarget "PK RemoteTests" */;
+			buildPhases = (
+				BB0000040000000000000000 /* Sources */,
+				BB0000030000000000000000 /* Frameworks */,
+				BB0000050000000000000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB0000080000000000000000 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BB0000020000000000000000 /* PK RemoteTests */,
+			);
+			name = "PK RemoteTests";
+			packageProductDependencies = (
+			);
+			productName = "PK RemoteTests";
+			productReference = BB0000010000000000000000 /* PK RemoteTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +130,10 @@
 				TargetAttributes = {
 					AA76D760300645D200DE992B = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					BB0000060000000000000000 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = AA76D760300645D200DE992B;
 					};
 				};
 			};
@@ -100,12 +152,20 @@
 			projectRoot = "";
 			targets = (
 				AA76D760300645D200DE992B /* PK Remote */,
+				BB0000060000000000000000 /* PK RemoteTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		AA76D75F300645D200DE992B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000050000000000000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,9 +182,68 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000040000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		BB0000080000000000000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA76D760300645D200DE992B /* PK Remote */;
+			targetProxy = BB0000070000000000000000 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		BB0000090000000000000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.pk.PK-RemoteTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PK Remote.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PK Remote";
+			};
+			name = Debug;
+		};
+		BB00000A0000000000000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.pk.PK-RemoteTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PK Remote.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PK Remote";
+			};
+			name = Release;
+		};
 		AA76D76A300645D300DE992B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -309,6 +428,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		BB00000B0000000000000000 /* Build configuration list for PBXNativeTarget "PK RemoteTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000090000000000000000 /* Debug */,
+				BB00000A0000000000000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		AA76D75C300645D200DE992B /* Build configuration list for PBXProject "PK Remote" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

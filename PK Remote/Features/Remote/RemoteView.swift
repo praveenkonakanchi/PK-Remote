@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RemoteView: View {
-    @State private var lastCommand = "Ready"
+    let appState: AppState
 
     var body: some View {
         NavigationStack {
@@ -17,7 +17,7 @@ struct RemoteView: View {
                     volumeControls
                     NumberPadView(action: handle)
                     MediaControlsView(action: handle)
-                    Text("Last action: \(lastCommand)")
+                    Text("Last action: \(appState.lastActionDescription)")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 .padding()
@@ -29,8 +29,8 @@ struct RemoteView: View {
     private var deviceHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text("PKD").font(.title2.bold())
-                Text("Google TV").foregroundStyle(.secondary)
+                Text(appState.selectedDevice?.name ?? "No device").font(.title2.bold())
+                Text(appState.selectedDevice?.kind ?? "Select a device").foregroundStyle(.secondary)
             }
             Spacer()
             Label("Available", systemImage: "circle.fill").font(.caption).foregroundStyle(.green)
@@ -46,8 +46,10 @@ struct RemoteView: View {
         }
     }
 
-    private func handle(_ command: RemoteCommand) { lastCommand = command.accessibilityLabel }
+    private func handle(_ command: RemoteCommand) {
+        Task { await appState.send(command) }
+    }
 }
 
-#Preview("Light") { RemoteView() }
-#Preview("Dark") { RemoteView().preferredColorScheme(.dark) }
+#Preview("Light") { RemoteView(appState: AppState()) }
+#Preview("Dark") { RemoteView(appState: AppState()).preferredColorScheme(.dark) }
