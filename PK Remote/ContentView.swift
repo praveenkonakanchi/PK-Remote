@@ -1,24 +1,20 @@
-//
-//  ContentView.swift
-//  PK Remote
-//
-//  Created by PeeKay on 7/14/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            DevicesView()
+                .tabItem { Label("Devices", systemImage: "tv") }
+
+            RemoteView()
+                .tabItem { Label("Remote", systemImage: "dot.radiowaves.left.and.right") }
+
+            STBModeView()
+                .tabItem { Label("STB Mode", systemImage: "rectangle.grid.2x2") }
         }
-        .padding()
+        .tint(.indigo)
     }
 }
 
-#Preview {
-    ContentView()
-}
+#Preview("Light") { ContentView() }
+#Preview("Dark") { ContentView().preferredColorScheme(.dark) }
