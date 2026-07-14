@@ -4,11 +4,12 @@ import Testing
 
 @MainActor
 struct AppStateTests {
-    @Test func startsWithPlaceholderDeviceSelected() {
+    @Test func startsReadyForDiscovery() {
         let state = AppState()
 
-        #expect(state.devices == [.placeholder])
-        #expect(state.selectedDevice == .placeholder)
+        #expect(state.devices.isEmpty)
+        #expect(state.selectedDevice == nil)
+        #expect(state.discoveryState == .idle)
         #expect(state.lastActionDescription == "Ready")
     }
 
@@ -35,12 +36,13 @@ struct AppStateTests {
 
     @Test func discoveryReplacesDevicesAndSelectsFirstResult() async {
         let livingRoom = RemoteDevice(name: "Living Room")
-        let state = AppState(
-            devices: [.placeholder],
-            deviceDiscovery: StubDeviceDiscovery(result: .success([livingRoom]))
-        )
+        let discovery = StubDeviceDiscovery()
+        let state = AppState(devices: [.placeholder], deviceDiscovery: discovery)
 
-        await state.discoverDevices()
+        state.startDiscovery()
+        #expect(state.discoveryState == .searching)
+        discovery.send(.success([livingRoom, livingRoom]))
+        await settle()
 
         #expect(state.devices == [livingRoom])
         #expect(state.selectedDevice == livingRoom)
@@ -48,12 +50,30 @@ struct AppStateTests {
     }
 
     @Test func discoveryExposesFailureWithoutDiscardingDevices() async {
-        let state = AppState(deviceDiscovery: StubDeviceDiscovery(result: .failure(.discovery)))
+        let discovery = StubDeviceDiscovery()
+        let state = AppState(devices: [.placeholder], deviceDiscovery: discovery)
 
-        await state.discoverDevices()
+        state.startDiscovery()
+        discovery.send(.failure(TestFailure.discovery))
+        await settle()
 
         #expect(state.devices == [.placeholder])
         #expect(state.discoveryState == .failed(TestFailure.discovery.localizedDescription))
+    }
+
+    @Test func stoppingDiscoveryReturnsSearchingStateToIdle() {
+        let discovery = StubDeviceDiscovery()
+        let state = AppState(deviceDiscovery: discovery)
+
+        state.startDiscovery()
+        state.stopDiscovery()
+
+        #expect(discovery.stopCallCount == 1)
+        #expect(state.discoveryState == .idle)
+    }
+
+    private func settle() async {
+        for _ in 0..<10 { await Task.yield() }
     }
 }
 
@@ -71,11 +91,21 @@ private struct FailingCommandHandler: RemoteCommandHandling {
     }
 }
 
-private struct StubDeviceDiscovery: DeviceDiscovering {
-    let result: Result<[RemoteDevice], TestFailure>
+@MainActor
+private final class StubDeviceDiscovery: DeviceDiscovering {
+    private var onUpdate: UpdateHandler?
+    private(set) var stopCallCount = 0
 
-    func discover() async throws -> [RemoteDevice] {
-        try result.get()
+    func start(onUpdate: @escaping UpdateHandler) {
+        self.onUpdate = onUpdate
+    }
+
+    func stop() {
+        stopCallCount += 1
+    }
+
+    func send(_ result: Result<[RemoteDevice], Error>) {
+        onUpdate?(result)
     }
 }
 

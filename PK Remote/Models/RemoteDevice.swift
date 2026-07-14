@@ -6,25 +6,37 @@ struct RemoteDevice: Identifiable, Hashable, Sendable {
         case unavailable = "Unavailable"
     }
 
-    let id: UUID
+    let id: String
     var name: String
     var kind: String
     var availability: Availability
+    var serviceType: String?
+    var serviceDomain: String?
 
     init(
-        id: UUID = UUID(),
+        id: String? = nil,
         name: String,
         kind: String = "Google TV",
-        availability: Availability = .available
+        availability: Availability = .available,
+        serviceType: String? = nil,
+        serviceDomain: String? = nil
     ) {
-        self.id = id
+        self.id = id ?? Self.makeID(name: name, type: serviceType, domain: serviceDomain)
         self.name = name
         self.kind = kind
         self.availability = availability
+        self.serviceType = serviceType
+        self.serviceDomain = serviceDomain
     }
 
     static let placeholder = RemoteDevice(
-        id: UUID(uuidString: "504B4400-0000-0000-0000-000000000001")!,
+        id: "placeholder-pkd",
         name: "PKD"
     )
+
+    static func makeID(name: String, type: String?, domain: String?) -> String {
+        [name, type ?? "", domain ?? ""]
+            .joined(separator: "|")
+            .lowercased()
+    }
 }
