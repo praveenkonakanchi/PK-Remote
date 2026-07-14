@@ -42,15 +42,19 @@ struct DeviceDetailView: View {
             }
 
         case .awaitingCode:
-            Text("Enter the 6-digit code shown on your TV.")
+            Text("Enter the 6-character code shown on your TV.")
                 .foregroundStyle(.secondary)
             TextField("Pairing code", text: $pairingCode)
-                .keyboardType(.numberPad)
+                .keyboardType(.asciiCapable)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
                 .textContentType(.oneTimeCode)
                 .onChange(of: pairingCode) { _, value in
-                    pairingCode = String(value.filter(\.isNumber).prefix(6))
+                    pairingCode = String(
+                        value.uppercased().filter { "0123456789ABCDEF".contains($0) }.prefix(6)
+                    )
                 }
-                .accessibilityLabel("6-digit pairing code")
+                .accessibilityLabel("6-character pairing code")
             Button("Pair") {
                 Task { await appState.submitPairingCode(pairingCode, for: device) }
             }

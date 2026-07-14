@@ -8,11 +8,29 @@ protocol DevicePairingService: Sendable {
 
 enum DevicePairingServiceError: LocalizedError {
     case transportUnavailable
+    case deviceEndpointUnavailable
+    case serviceResolutionFailed
+    case connectionFailed(String)
+    case invalidPairingCode
+    case pairingSessionMissing
+    case protocolFailure
 
     var errorDescription: String? {
         switch self {
         case .transportUnavailable:
             "Secure pairing is not available yet."
+        case .deviceEndpointUnavailable:
+            "The TV pairing service could not be resolved. Refresh Devices and try again."
+        case .serviceResolutionFailed:
+            "The TV hostname could not be resolved. Make sure it is on the same Wi-Fi network."
+        case .connectionFailed(let message):
+            "Could not connect to the TV: \(message)"
+        case .invalidPairingCode:
+            "The pairing code was not accepted. Check the code on your TV and try again."
+        case .pairingSessionMissing:
+            "The pairing session expired. Start pairing again."
+        case .protocolFailure:
+            "The TV returned an unexpected pairing response."
         }
     }
 }

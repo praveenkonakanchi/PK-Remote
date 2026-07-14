@@ -32,7 +32,7 @@ final class AppState {
         self.selectedDeviceID = selectedDeviceID
         self.commandHandler = commandHandler ?? LocalRemoteCommandHandler()
         self.deviceDiscovery = deviceDiscovery ?? BonjourDeviceDiscovery()
-        self.pairingService = pairingService ?? UnavailableDevicePairingService()
+        self.pairingService = pairingService ?? GoogleTVPairingService()
     }
 
     var selectedDevice: RemoteDevice? {
@@ -62,14 +62,19 @@ final class AppState {
     }
 
     func submitPairingCode(_ code: String, for device: RemoteDevice) async {
-        guard code.count == 6, code.allSatisfy(\.isNumber) else {
-            pairingStates[device.id] = .failed("Enter the 6-digit code shown on your TV.")
+        let normalizedCode = code
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        let hexadecimalCharacters = CharacterSet(charactersIn: "0123456789ABCDEF")
+        guard normalizedCode.count == 6,
+              normalizedCode.unicodeScalars.allSatisfy(hexadecimalCharacters.contains) else {
+            pairingStates[device.id] = .failed("Enter the 6-character code shown on your TV.")
             return
         }
 
         pairingStates[device.id] = .pairing
         do {
-            try await pairingService.pair(device, using: code)
+            try await pairingService.pair(device, using: normalizedCode)
             pairingStates[device.id] = .paired
         } catch {
             pairingStates[device.id] = .failed(error.localizedDescription)
