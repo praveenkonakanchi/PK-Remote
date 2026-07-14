@@ -1,8 +1,6 @@
 # PK Remote
 
-PK Remote is an open-source Google TV and Android TV remote for iPhone, built with SwiftUI.
-
-The project currently provides a polished remote interface, discovers compatible TVs on the local network, and securely pairs with Google TV devices. Remote command transmission is planned but is not implemented yet.
+PK Remote is an open-source Google TV and Android TV remote for iPhone, built with SwiftUI. The MVP discovers TVs on the local network, pairs securely using the code shown on the TV, and provides responsive remote, keyboard, media, and STB portal controls.
 
 ## Current Features
 
@@ -12,10 +10,13 @@ The project currently provides a polished remote interface, discovers compatible
 - Secure Google TV pairing with a six-character on-screen code
 - Per-installation RSA client identity stored in the device-only Keychain
 - Paired TV certificate fingerprint stored for future connection verification
+- Persistent per-device pairing state across app launches
+- Authenticated Google TV Remote Protocol command connection
 - Directional pad with select, home, back, and power controls
 - Volume, mute, number-pad, and media controls
-- STB Mode shortcuts for Search, View, Sort, and Favorites
-- Semantic remote commands with harmless local actions
+- Keyboard text entry for focused TV fields
+- STB Mode with Back, Keyboard, Settings, View, Sort, Favorites, Find, and media controls
+- Correct Android TV programmable color-key mappings for STB portals
 - Accessibility labels and SwiftUI previews
 - Native light and dark appearance support
 - Apple `swift-certificates` for X.509 certificate generation
@@ -31,12 +32,14 @@ Screenshots are coming soon.
 - [x] Accessible light and dark UI
 - [x] Google TV and Android TV discovery with Bonjour (mDNS)
 - [x] Secure pairing with an on-screen pairing code
-- [ ] Google TV Remote Protocol integration
-- [ ] Remote command transmission
-- [ ] Keyboard input
+- [x] Google TV Remote Protocol integration
+- [x] Remote command transmission
+- [x] Keyboard input
+- [x] STB portal color-key controls
 - [ ] Voice search
-- [ ] Multiple-TV support
-- [ ] Device and favorites persistence
+- [ ] Expanded real-device compatibility testing
+- [ ] Automated UI tests
+- [ ] App Store metadata, screenshots, and privacy details
 - [ ] App Store release
 
 ## Tech Stack
@@ -47,7 +50,8 @@ Screenshots are coming soon.
 - Swift Concurrency
 - Network framework
 - Bonjour / mDNS
-- Google TV pairing protocol
+- Google TV pairing and remote protocols
+- Security and Keychain services
 - Apple `swift-certificates`
 
 ## Project Structure
@@ -73,10 +77,27 @@ PK Remote/
    ```
 
 2. Open `PK Remote.xcodeproj` in Xcode.
-3. Select an iPhone simulator or a development device.
-4. Build and run the `PK Remote` scheme.
+3. Select the **PK Remote** target, open **Signing & Capabilities**, and choose your development team.
+4. Connect an iPhone, enable Developer Mode if prompted, and select it as the run destination.
+5. Build and run the `PK Remote` scheme.
+6. Keep the iPhone and TV on the same local network, select the discovered TV, and enter the six-character code shown on the TV.
 
-Remote buttons currently update local UI state only. Device discovery and secure pairing work on a local network; remote command transmission is the next protocol milestone.
+The iOS Simulator can be used to review the interface and run tests, but discovery, pairing, and remote commands should be validated on a physical iPhone and compatible TV.
+
+## Installing on a Personal iPhone
+
+- **Free Apple Account:** Xcode can install the app using a Personal Team. The provisioning profile expires after seven days, so the app must be rebuilt and reinstalled periodically.
+- **Apple Developer Program:** Use Xcode development or Ad Hoc distribution for registered devices, or upload an archive to TestFlight for beta use.
+- **App Store:** For a permanent public installation, create the app record in App Store Connect, archive and upload a release build, complete the required metadata and privacy disclosures, then submit it for App Review.
+
+For everyday use during development, connecting the iPhone to Xcode and pressing Run is the simplest option. Reinstalling the app with the same bundle identifier preserves its app container and Keychain identity in normal update scenarios, so the TV should remain paired.
+
+## MVP Limitations
+
+- Tested primarily against a real Google TV device; behavior may vary across manufacturers and Android TV versions.
+- Voice input is not implemented.
+- The iPhone and TV must be reachable on the same local network.
+- This is not yet an App Store release build.
 
 ## Contributing
 
@@ -86,4 +107,4 @@ When contributing connectivity features, do not commit pairing secrets, certific
 
 ## License
 
-This project is intended to be distributed under the MIT License. A license file will be added before the first release.
+An explicit license file still needs to be added before the first public release. Until then, standard copyright applies.
