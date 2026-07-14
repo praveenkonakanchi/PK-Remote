@@ -15,20 +15,24 @@ final class AppState {
     private(set) var discoveryState: DiscoveryState = .idle
     private(set) var lastCommand: RemoteCommand?
     private(set) var commandError: String?
+    private(set) var pairingStates: [RemoteDevice.ID: DevicePairingState] = [:]
 
     private let commandHandler: any RemoteCommandHandling
     private let deviceDiscovery: any DeviceDiscovering
+    private let pairingService: any DevicePairingService
 
     init(
         devices: [RemoteDevice] = [],
         selectedDeviceID: RemoteDevice.ID? = nil,
         commandHandler: (any RemoteCommandHandling)? = nil,
-        deviceDiscovery: (any DeviceDiscovering)? = nil
+        deviceDiscovery: (any DeviceDiscovering)? = nil,
+        pairingService: (any DevicePairingService)? = nil
     ) {
         self.devices = devices
         self.selectedDeviceID = selectedDeviceID
         self.commandHandler = commandHandler ?? LocalRemoteCommandHandler()
         self.deviceDiscovery = deviceDiscovery ?? BonjourDeviceDiscovery()
+        self.pairingService = pairingService ?? UnavailableDevicePairingService()
     }
 
     var selectedDevice: RemoteDevice? {
@@ -41,6 +45,40 @@ final class AppState {
 
     func select(_ device: RemoteDevice) {
         selectedDeviceID = device.id
+    }
+
+    func pairingState(for device: RemoteDevice) -> DevicePairingState {
+        pairingStates[device.id] ?? .unpaired
+    }
+
+    func requestPairingCode(for device: RemoteDevice) async {
+        pairingStates[device.id] = .requestingCode
+        do {
+            try await pairingService.requestPairingCode(for: device)
+            pairingStates[device.id] = .awaitingCode
+        } catch {
+            pairingStates[device.id] = .failed(error.localizedDescription)
+        }
+    }
+
+    func submitPairingCode(_ code: String, for device: RemoteDevice) async {
+        guard code.count == 6, code.allSatisfy(\.isNumber) else {
+            pairingStates[device.id] = .failed("Enter the 6-digit code shown on your TV.")
+            return
+        }
+
+        pairingStates[device.id] = .pairing
+        do {
+            try await pairingService.pair(device, using: code)
+            pairingStates[device.id] = .paired
+        } catch {
+            pairingStates[device.id] = .failed(error.localizedDescription)
+        }
+    }
+
+    func cancelPairing(for device: RemoteDevice) async {
+        await pairingService.cancelPairing(for: device)
+        pairingStates[device.id] = .unpaired
     }
 
     func send(_ command: RemoteCommand) async {
@@ -91,7 +129,8 @@ final class AppState {
         AppState(
             devices: [.placeholder],
             selectedDeviceID: RemoteDevice.placeholder.id,
-            deviceDiscovery: PlaceholderDeviceDiscovery()
+            deviceDiscovery: PlaceholderDeviceDiscovery(),
+            pairingService: PreviewDevicePairingService()
         )
     }
 }

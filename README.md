@@ -9,6 +9,7 @@ The project currently provides a polished remote interface and discovers compati
 - Devices, Remote, and STB Mode navigation
 - Google TV and Android TV discovery with Bonjour (mDNS)
 - Device searching, empty, error, refresh, and selection states
+- Device details and a testable pairing-code workflow
 - Directional pad with select, home, back, and power controls
 - Volume, mute, number-pad, and media controls
 - STB Mode shortcuts for Search, View, Sort, and Favorites

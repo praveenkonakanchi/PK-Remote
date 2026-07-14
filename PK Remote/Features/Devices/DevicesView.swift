@@ -8,10 +8,11 @@ struct DevicesView: View {
             List {
                 Section("Google TV") {
                     ForEach(appState.devices) { device in
-                        Button { appState.select(device) } label: {
+                        NavigationLink {
+                            DeviceDetailView(device: device, appState: appState)
+                        } label: {
                             deviceRow(device)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -69,13 +70,9 @@ struct DevicesView: View {
                 Text(device.kind).font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
-            if appState.selectedDeviceID == device.id {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.indigo)
-            } else {
-                Image(systemName: "circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(device.availability == .available ? .green : .secondary)
-            }
+            Image(systemName: appState.pairingState(for: device) == .paired ? "checkmark.shield.fill" : "circle.fill")
+                .font(.caption)
+                .foregroundStyle(appState.pairingState(for: device) == .paired ? .indigo : .green)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
