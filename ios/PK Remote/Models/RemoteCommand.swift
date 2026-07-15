@@ -1,6 +1,6 @@
 import Foundation
 
-enum RemoteCommand: Hashable, Sendable {
+nonisolated enum RemoteCommand: Hashable, Sendable {
     case power, home, back, menu
     case up, down, left, right, select
     case volumeUp, volumeDown, mute

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Security
 import X509
@@ -6,6 +7,7 @@ nonisolated struct PairingIdentity: @unchecked Sendable {
     let identity: SecIdentity
     let privateKey: SecKey
     let publicKey: Data
+    let certificateFingerprint: Data
 }
 
 nonisolated enum PairingIdentityError: LocalizedError {
@@ -101,7 +103,13 @@ nonisolated struct PairingIdentityStore: Sendable {
         guard let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
             throw PairingIdentityError.invalidPublicKey
         }
-        return PairingIdentity(identity: identity, privateKey: privateKey, publicKey: publicKeyData)
+        let certificateData = SecCertificateCopyData(certificate) as Data
+        return PairingIdentity(
+            identity: identity,
+            privateKey: privateKey,
+            publicKey: publicKeyData,
+            certificateFingerprint: Data(SHA256.hash(data: certificateData))
+        )
     }
 
     private func loadPrivateKey() throws -> SecKey? {

@@ -9,6 +9,7 @@ nonisolated enum RemoteCommandTransportError: LocalizedError {
     case notPaired
     case connectionFailed(String)
     case certificateChanged
+    case pairingRejected
     case unsupportedCommand
     case protocolFailure
 
@@ -22,6 +23,8 @@ nonisolated enum RemoteCommandTransportError: LocalizedError {
             "Could not connect to the TV remote service: \(message)"
         case .certificateChanged:
             "The TV identity changed. Pair the TV again before reconnecting."
+        case .pairingRejected:
+            "The TV no longer accepts this app's pairing certificate. Pair the TV again."
         case .unsupportedCommand:
             "This remote command is not supported."
         case .protocolFailure:
@@ -51,10 +54,17 @@ actor GoogleTVRemoteCommandService: RemoteCommandHandling {
         } catch {
             sessions.removeValue(forKey: device.id)
             session.cancel()
+            if error.isPairingInvalidation {
+                throw error
+            }
             let replacement = try await makeSession(for: device)
             sessions[device.id] = replacement
             try await replacement.send(command)
         }
+    }
+
+    func stopSession(for device: RemoteDevice) async {
+        sessions.removeValue(forKey: device.id)?.cancel()
     }
 
     private func session(for device: RemoteDevice) async throws -> GoogleTVRemoteSession {
@@ -69,7 +79,7 @@ actor GoogleTVRemoteCommandService: RemoteCommandHandling {
         guard let type = device.serviceType, let domain = device.serviceDomain else {
             throw RemoteCommandTransportError.deviceEndpointUnavailable
         }
-        guard let certificateFingerprint = try credentialStore.fingerprint(for: device.id) else {
+        guard let certificateFingerprint = try credentialStore.tvCertificateFingerprint(for: device.id) else {
             throw RemoteCommandTransportError.notPaired
         }
 
@@ -131,8 +141,9 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
                 }
                 let certificateData = SecCertificateCopyData(leafCertificate) as Data
                 let fingerprint = Data(SHA256.hash(data: certificateData))
-                trustCapture.certificateMatches = fingerprint == expectedFingerprint
-                complete(trustCapture.certificateMatches)
+                let matches = fingerprint == expectedFingerprint
+                trustCapture.recordCertificate(matches: matches)
+                complete(matches)
             },
             queue
         )
@@ -208,8 +219,16 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
                     connectionContinuation?.resume()
                     connectionContinuation = nil
                 case .failed(let error):
+                    let transportError: RemoteCommandTransportError
+                    if trustCapture.receivedCertificate && !trustCapture.certificateMatches {
+                        transportError = .certificateChanged
+                    } else if error.isPairingCertificateRejection {
+                        transportError = .pairingRejected
+                    } else {
+                        transportError = .connectionFailed(error.localizedDescription)
+                    }
                     connectionContinuation?.resume(
-                        throwing: RemoteCommandTransportError.connectionFailed(error.localizedDescription)
+                        throwing: transportError
                     )
                     connectionContinuation = nil
                 case .cancelled:
@@ -318,6 +337,29 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
     }
 }
 
+nonisolated private extension Error {
+    var isPairingInvalidation: Bool {
+        guard let error = self as? RemoteCommandTransportError else { return false }
+        return switch error {
+        case .certificateChanged, .pairingRejected, .notPaired:
+            true
+        default:
+            false
+        }
+    }
+}
+
+nonisolated private extension NWError {
+    var isPairingCertificateRejection: Bool {
+        guard case .tls(let status) = self else { return false }
+        return status == errSSLPeerBadCert
+            || status == errSSLPeerUnsupportedCert
+            || status == errSSLPeerCertUnknown
+            || status == errSSLPeerUnknownCA
+            || status == errSSLPeerAccessDenied
+    }
+}
+
 nonisolated private extension Data {
     var hexadecimalString: String {
         map { String(format: "%02X", $0) }.joined()
@@ -325,7 +367,19 @@ nonisolated private extension Data {
 }
 
 nonisolated private final class RemoteTrustCapture: @unchecked Sendable {
-    var certificateMatches = false
+    private let lock = NSLock()
+    private var received = false
+    private var matches = false
+
+    var receivedCertificate: Bool { lock.withLock { received } }
+    var certificateMatches: Bool { lock.withLock { matches } }
+
+    func recordCertificate(matches: Bool) {
+        lock.withLock {
+            received = true
+            self.matches = matches
+        }
+    }
 }
 
 nonisolated private final class RemoteSessionHealth: @unchecked Sendable {

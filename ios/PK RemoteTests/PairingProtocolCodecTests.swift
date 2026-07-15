@@ -66,5 +66,26 @@ struct PairingProtocolCodecTests {
         #expect(recoveredPrivateKey != nil)
         #expect(recoveredCertificate != nil)
     }
+
+    @Test func productionCredentialSurvivesRelaunchAndRemainsBoundToIdentity() throws {
+        let deviceID = "credential-test-\(UUID().uuidString)"
+        let identity = try PairingIdentityStore().loadOrCreate()
+        let firstStore = PairingCredentialStore()
+        let tvFingerprint = Data(repeating: 0xA5, count: 32)
+        defer { try? firstStore.removePairing(for: deviceID) }
+
+        try firstStore.save(
+            tvCertificateFingerprint: tvFingerprint,
+            clientCertificateFingerprint: identity.certificateFingerprint,
+            for: deviceID
+        )
+
+        let relaunchedStore = PairingCredentialStore()
+        #expect(relaunchedStore.isPaired(deviceID: deviceID))
+        #expect(try relaunchedStore.tvCertificateFingerprint(for: deviceID) == tvFingerprint)
+
+        try relaunchedStore.removePairing(for: deviceID)
+        #expect(!relaunchedStore.isPaired(deviceID: deviceID))
+    }
 #endif
 }
