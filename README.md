@@ -1,31 +1,83 @@
 # PK Remote
 
+Swift • SwiftUI • Google TV • Android TV • MIT
+
 PK Remote is an open-source Google TV and Android TV remote for iPhone, built with SwiftUI. The MVP discovers TVs on the local network, pairs securely using the code shown on the TV, and provides responsive remote, keyboard, media, and STB portal controls.
 
 ## Current Features
 
-- Devices, Remote, and STB Mode navigation
+### Device Discovery
+
 - Google TV and Android TV discovery with Bonjour (mDNS)
 - Device searching, empty, error, refresh, and selection states
+- Persistent per-device pairing state across app launches
+
+### Secure Pairing
+
 - Secure Google TV pairing with a six-character on-screen code
 - Per-installation RSA client identity stored in the device-only Keychain
 - Paired TV certificate fingerprint stored for future connection verification
-- Persistent per-device pairing state across app launches
+- Pair Again and Forget Pairing recovery actions
+
+### Remote Control
+
 - Authenticated Google TV Remote Protocol command connection
 - Directional pad with select, home, back, and power controls
 - Volume, mute, number-pad, and media controls
 - Keyboard text entry for focused TV fields
+- Native Google TV Quick Settings access
+
+### STB Mode
+
 - Compact, non-scrolling STB Mode with Home, Back, Keyboard, Settings, color keys, and media controls
 - Correct Android TV programmable color-key mappings for STB portals
-- Configurable STB app shortcuts in a persistent 4 × 2 grid with an eight-shortcut limit
-- Duplicate-free Popular Apps picker backed by a physically verified Remote v2 catalog
-- Built-in shortcuts for YouTube, Netflix, Prime Video, Hulu, Peacock, Pluto TV, Apple TV, Disney+, Aha, Max, Tubi, and Play Store
-- Advanced custom shortcut editor for TVs that support additional Remote v2 launch identifiers
-- Clear, tab-local command feedback that automatically dismisses after a few seconds
-- Native Google TV quick-settings panel from the Remote settings button
+
+### App Shortcuts
+
+- Persistent 4 × 2 shortcut grid with an eight-shortcut limit
+- Duplicate-free Popular Apps picker
+- Built-in catalog physically verified through Google TV Remote v2
+- Automatic shortcut persistence, replacement, removal, and ordering
+- Advanced custom shortcut editor for compatible Remote v2 launch identifiers
+
+### UI and Accessibility
+
+- Devices, Remote, and STB Mode navigation
 - Accessibility labels and SwiftUI previews
 - Native light and dark appearance support
-- Apple `swift-certificates` for X.509 certificate generation
+- Clear, tab-local command feedback that automatically dismisses after a few seconds
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["PK Remote on iPhone"] -->|"Bonjour / mDNS"| B["Google TV discovery"]
+    B --> C["Selected TV"]
+    C -->|"Pairing · TCP 6467"| D["Mutual TLS pairing"]
+    D --> E["Keychain identity + TV fingerprint"]
+    E -->|"Remote v2 · TCP 6466"| F["Google TV commands"]
+```
+
+The app resolves the selected Bonjour service when connecting rather than treating a hostname or IP address as a permanent device identifier. Pairing and remote commands reuse the same per-installation client identity.
+
+## Verified Remote v2 App Shortcuts
+
+The following apps were physically verified to launch through Google TV Remote v2:
+
+- YouTube
+- Netflix
+- Prime Video
+- Apple TV
+- Disney+
+- Hulu
+- Peacock
+- Pluto TV
+- Aha
+- Max
+- Tubi
+- Play Store
+
+Support for additional apps depends on the app exposing a compatible Google TV Remote v2 launch link.
 
 ## Screenshots
 
@@ -79,6 +131,7 @@ PK Remote is an open-source Google TV and Android TV remote for iPhone, built wi
 - [ ] Voice search
 - [ ] Expanded real-device compatibility testing
 - [ ] Automated UI tests
+- [ ] Android version
 - [ ] App Store metadata, screenshots, and privacy details
 - [ ] App Store release
 
@@ -90,6 +143,7 @@ PK Remote is an open-source Google TV and Android TV remote for iPhone, built wi
 - Swift Concurrency
 - Network framework
 - Bonjour / mDNS
+- TLS / mutual TLS
 - Google TV pairing and remote protocols
 - Security and Keychain services
 - Apple `swift-certificates`
@@ -103,7 +157,8 @@ PK-Remote/
 │   ├── PK Remote/           SwiftUI app source and assets
 │   ├── PK Remote.xcodeproj/ Xcode project
 │   └── PK RemoteTests/      Unit tests
-├── docs/                    Screenshots and documentation
+├── docs/
+│   └── screenshots/        App, status, and error screenshots
 ├── README.md
 └── LICENSE
 ```
@@ -136,11 +191,16 @@ The iOS Simulator can be used to review the interface and run tests, but discove
 
 For everyday use during development, connecting the iPhone to Xcode and pressing Run is the simplest option. Reinstalling the app with the same bundle identifier preserves its app container and Keychain identity in normal update scenarios, so the TV should remain paired.
 
+## Physical-device Validation
+
+Validated on a physical Google TV using secure pairing, persistent authentication, remote commands, keyboard input, Quick Settings, and verified Remote v2 app launching.
+
 ## MVP Limitations
 
-- Tested primarily against a real Google TV device; behavior may vary across manufacturers and Android TV versions.
+- Behavior may vary across manufacturers, Android TV versions, and app releases.
 - Built-in app shortcuts were physically verified on the development TV, but an app must also be installed on the selected TV and Remote v2 launch support can vary by app version or device.
-- Android launcher intents are not universally accepted by Remote v2. Apps that opened a URL chooser or were rejected—including STBEmu, Willow, ZEE5, Paramount+, and Play Movies on the development TV—are intentionally excluded from the built-in catalog.
+- Apps that do not expose a compatible Google TV Remote v2 launch link—for example, STBEmu Pro and Willow on the development device—are intentionally excluded from the built-in shortcut catalog.
+- ZEE5, Paramount+, and Play Movies opened Android's generic URL chooser on the development device instead of launching directly, so they are also excluded.
 - Voice input is not implemented.
 - The iPhone and TV must be reachable on the same local network.
 - This is not yet an App Store release build.
