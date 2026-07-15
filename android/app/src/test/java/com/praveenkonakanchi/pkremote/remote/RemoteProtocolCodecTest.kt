@@ -28,4 +28,11 @@ class RemoteProtocolCodecTest {
             RemoteProtocolCodec.frame(RemoteProtocolCodec.text("Hi", 5, 7)),
         )
     }
+
+    @Test fun appLaunchResponseIdentifiesFieldNinety() {
+        assertEquals(
+            RemoteProtocolMessage.RemoteError(false, 90),
+            RemoteProtocolCodec.decode(byteArrayOf(0x1a, 0x05, 0x12, 0x03, 0xd2.toByte(), 0x05, 0x00)),
+        )
+    }
 }

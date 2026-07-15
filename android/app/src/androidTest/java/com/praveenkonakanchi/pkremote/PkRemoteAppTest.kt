@@ -4,13 +4,16 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.praveenkonakanchi.pkremote.discovery.DeviceDiscovery
 import com.praveenkonakanchi.pkremote.discovery.DeviceDiscoveryEvent
 import com.praveenkonakanchi.pkremote.ui.PkRemoteApp
 import com.praveenkonakanchi.pkremote.ui.PkRemoteViewModel
 import com.praveenkonakanchi.pkremote.ui.theme.PkRemoteTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -36,6 +39,11 @@ class PkRemoteAppTest {
         composeRule.onNodeWithText("STB Mode").performClick()
         composeRule.onNodeWithContentDescription("Open keyboard").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Open YouTube").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Add app shortcut").performClick()
+        composeRule.onNodeWithText("Popular Apps").assertIsDisplayed()
+        composeRule.onNodeWithText("Hulu").assertIsDisplayed()
+        composeRule.onNodeWithText("Advanced / Custom Shortcut").performScrollTo().assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("https://www.hulu.com/").fetchSemanticsNodes().isEmpty())
     }
 }
 

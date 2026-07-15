@@ -15,6 +15,7 @@ internal sealed class RemoteTransportException(message: String) : Exception(mess
     data object CertificateChanged : RemoteTransportException("The TV identity changed. Pair the TV again.")
     data object PairingRejected : RemoteTransportException("The TV no longer accepts this pairing. Pair the TV again.")
     data object UnsupportedCommand : RemoteTransportException("This remote command is not supported yet.")
+    data object AppLaunchRejected : RemoteTransportException("Couldn’t open this app. Make sure it is installed on your TV, then try again.")
     data class ConnectionFailed(val detail: String) : RemoteTransportException("Could not connect to the TV: $detail")
 
     val invalidatesPairing: Boolean

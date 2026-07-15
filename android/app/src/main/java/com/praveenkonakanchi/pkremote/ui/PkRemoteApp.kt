@@ -97,6 +97,10 @@ fun PkRemoteApp(viewModel: PkRemoteViewModel) {
                 shortcuts = state.shortcuts,
                 errorMessage = state.commandFeedback?.takeIf { it.surface == CommandSurface.StbMode }?.message,
                 onCommand = { viewModel.handleCommand(it, CommandSurface.StbMode) },
+                onAddShortcut = viewModel::addShortcut,
+                onReplaceShortcut = viewModel::replaceShortcut,
+                onRemoveShortcut = viewModel::removeShortcut,
+                onMoveShortcut = viewModel::moveShortcut,
                 modifier = Modifier.padding(padding),
             )
         }
