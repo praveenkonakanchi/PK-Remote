@@ -40,6 +40,7 @@ import com.praveenkonakanchi.pkremote.ui.components.RemoteButton
 @Composable
 fun RemoteScreen(
     device: RemoteDevice?,
+    errorMessage: String? = null,
     onCommand: (RemoteCommand) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -56,6 +57,9 @@ fun RemoteScreen(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         DeviceHeader(device)
+        if (errorMessage != null) {
+            Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        }
         if (!enabled) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color(0xFFFF922B))
