@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Android Studio / Gradle
+.gradle/
+.kotlin/
+.idea/
+**/build/
+*.iml
+local.properties
+
+# Android signing keys
+keys/
+*.jks
+*.keystore
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
