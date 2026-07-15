@@ -2,7 +2,12 @@
 
 Swift • SwiftUI • Google TV • Android TV • MIT
 
-PK Remote is an open-source Google TV and Android TV remote for iPhone, built with SwiftUI. The MVP discovers TVs on the local network, pairs securely using the code shown on the TV, and provides responsive remote, keyboard, media, and STB portal controls.
+PK Remote is an open-source Google TV and Android TV remote. The functional iOS MVP is built with SwiftUI; a native Android phone app is now being developed with Kotlin and Jetpack Compose. The iOS app discovers TVs on the local network, pairs securely using the code shown on the TV, and provides responsive remote, keyboard, media, and STB portal controls.
+
+## Platform Status
+
+- **iOS:** Functional MVP with discovery, secure pairing, authenticated Remote v2 commands, keyboard input, STB controls, and app shortcuts.
+- **Android:** Native Kotlin/Jetpack Compose UI foundation under `android/`. Milestone 1 is static and uses harmless local actions only; discovery, pairing, and command transport are not implemented yet.
 
 ## Current Features
 
@@ -131,7 +136,8 @@ Support for additional apps depends on the app exposing a compatible Google TV R
 - [ ] Voice search
 - [ ] Expanded real-device compatibility testing
 - [ ] Automated UI tests
-- [ ] Android version
+- [x] Android project and Compose UI foundation
+- [ ] Android discovery, secure pairing, and Remote v2 transport
 - [ ] App Store metadata, screenshots, and privacy details
 - [ ] App Store release
 
@@ -139,6 +145,9 @@ Support for additional apps depends on the app exposing a compatible Google TV R
 
 - Swift
 - SwiftUI
+- Kotlin
+- Jetpack Compose
+- Gradle
 - Xcode
 - Swift Concurrency
 - Network framework
@@ -152,6 +161,7 @@ Support for additional apps depends on the app exposing a compatible Google TV R
 
 ```text
 PK-Remote/
+├── android/                 Native Android phone app
 ├── ios/
 │   ├── Configuration/       iOS configuration files
 │   ├── PK Remote/           SwiftUI app source and assets
@@ -164,6 +174,8 @@ PK-Remote/
 ```
 
 ## Getting Started
+
+### iOS
 
 1. Clone the repository:
 
@@ -182,6 +194,18 @@ In **STB Mode**, tap the plus button to choose from apps verified to launch thro
 If a shortcut cannot be opened, STB Mode shows a temporary message beneath the shortcut grid suggesting that the app may need to be installed. Command feedback remains on the screen where it occurred, clears when switching tabs, and automatically dismisses after a few seconds.
 
 The iOS Simulator can be used to review the interface and run tests, but discovery, pairing, and remote commands should be validated on a physical iPhone and compatible TV.
+
+### Android UI foundation
+
+Open `android/` in Android Studio, or build from the repository root:
+
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+./android/gradlew -p android :app:assembleDebug
+```
+
+See [android/README.md](android/README.md) for the current milestone scope and planned Android architecture. The Android app does not control a TV yet.
 
 ## Installing on a Personal iPhone
 
