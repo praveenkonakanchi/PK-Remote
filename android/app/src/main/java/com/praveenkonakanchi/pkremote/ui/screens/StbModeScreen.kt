@@ -1,5 +1,6 @@
 package com.praveenkonakanchi.pkremote.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -10,6 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -97,10 +101,19 @@ private fun PortalControls(enabled: Boolean, onCommand: (RemoteCommand) -> Unit)
                 shape = RoundedCornerShape(16.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
             ) {
-                Box(Modifier.padding(end = 5.dp).weight(0.2f), contentAlignment = Alignment.Center) {
-                    Text("●", color = color)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(9.dp)
+                            .background(color, CircleShape),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(title, maxLines = 1, style = MaterialTheme.typography.labelLarge)
                 }
-                Text(title, maxLines = 1, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
