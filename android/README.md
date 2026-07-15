@@ -2,7 +2,7 @@
 
 This directory contains the native Android phone app for PK Remote. It lives beside `ios/` and uses the iOS implementation as the product and protocol reference.
 
-## Milestone 2: Google TV discovery
+## Milestone 3: secure Google TV connectivity
 
 Implemented:
 
@@ -11,7 +11,7 @@ Implemented:
 - Devices, Remote, and STB Mode bottom navigation
 - Reusable D-pad, remote button, media, and number-pad components
 - Compact STB layout with portal color controls and the verified default shortcuts
-- Semantic `RemoteCommand` model and harmless local-only command handling
+- Semantic `RemoteCommand` model and authenticated Remote v2 command handling
 - `ViewModel` + `StateFlow` UI state
 - Accessibility descriptions and visible Material pressed states
 - Unit tests and a Compose navigation test
@@ -21,16 +21,22 @@ Implemented:
 - Searching, empty, failure, retry, refresh, found, and lost device states
 - Lifecycle-aware discovery that stops when the Devices screen leaves the foreground
 - Multicast reception support across the minimum Android version
+- Per-installation, non-exportable RSA client identity stored in Android Keystore
+- Secure Google TV pairing on port 6467 with the six-character code shown on the TV
+- Persistent per-device TV certificate fingerprints and paired-state restoration
+- Device details with Pair Again and Forget Pairing recovery actions
+- Mutual-TLS Remote v2 connections on port 6466 with exact TV certificate pinning
+- Protobuf framing, ping responses, IME counters, reconnect handling, and stale-pairing recovery
+- Directional, home, back, power, volume, number, media, Quick Settings, and STB color-key commands
+- Remote v2 app launching for compatible TV apps
+- Native Android keyboard entry transmitted to the focused TV text field
+- Screen-local errors with automatic dismissal
 
 Not implemented in this milestone:
 
-- pairing or TLS
-- Android Keystore identity management
-- Remote v2 command transport
-- shortcut editing or persistence
-- keyboard transmission
-
-The UI must not be interpreted as a working TV connection until those later milestones are implemented and physically validated.
+- shortcut editing, replacement, removal, and persistence
+- the complete verified-app picker and advanced custom-shortcut editor
+- release polish and expanded device compatibility testing
 
 ## Build
 
@@ -76,9 +82,9 @@ Conceptually portable from iOS:
 Android-specific implementations:
 
 - `NsdManager` service discovery and fresh endpoint resolution (implemented)
-- Android Keystore generation and recovery of the per-installation client identity
-- TLS socket configuration for ports 6467 and 6466
-- lifecycle-aware connection ownership and cancellation
+- Android Keystore generation and recovery of the per-installation client identity (implemented)
+- TLS socket configuration for ports 6467 and 6466 (implemented)
+- lifecycle-aware connection ownership and cancellation (implemented)
 - DataStore persistence for shortcuts and non-secret state
 
 ## Permissions
@@ -97,3 +103,9 @@ The finished app must not depend on ADB.
 Validate local-network discovery on a physical Android phone connected to the same Wi-Fi network as the TV. The Android Emulator normally uses the virtual `AndroidWifi` NAT network; mDNS advertisements from the host LAN may be missing, stale, or only partially forwarded there.
 
 Useful debug messages use the `PKRemoteDiscovery` Logcat tag and report when a service is found, resolved, lost, or cannot be resolved. A TV is added to the UI only after its current host and Remote v2 service port resolve successfully.
+
+## Connectivity validation
+
+The connectivity milestone was validated on a physical Motorola Android phone and a physical Google TV. Validation covered discovery, initial secure pairing, authenticated Remote v2 commands, volume and media controls, STB portal color keys, compatible app launching, and keyboard text entry.
+
+The Android Keystore identity remains non-exportable. Its authorization includes the raw RSA operation required by the device's Conscrypt TLS provider while retaining the signing capabilities used by mutual TLS.

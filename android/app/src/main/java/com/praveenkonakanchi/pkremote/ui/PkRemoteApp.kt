@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.praveenkonakanchi.pkremote.ui.screens.DevicesScreen
+import com.praveenkonakanchi.pkremote.ui.screens.DeviceDetailScreen
 import com.praveenkonakanchi.pkremote.ui.screens.RemoteScreen
 import com.praveenkonakanchi.pkremote.ui.screens.StbModeScreen
 
@@ -43,6 +44,7 @@ fun PkRemoteApp() {
 fun PkRemoteApp(viewModel: PkRemoteViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var destinationName by rememberSaveable { mutableStateOf(Destination.Devices.name) }
+    var detailDeviceId by rememberSaveable { mutableStateOf<String?>(null) }
     val destination = remember(destinationName) { Destination.valueOf(destinationName) }
 
     Scaffold(
@@ -59,25 +61,42 @@ fun PkRemoteApp(viewModel: PkRemoteViewModel) {
             }
         },
     ) { padding ->
-        when (destination) {
+        val detailDevice = detailDeviceId?.let { id -> state.devices.firstOrNull { it.id == id } }
+        if (destination == Destination.Devices && detailDevice != null) {
+            DeviceDetailScreen(
+                device = detailDevice,
+                pairingStatus = state.pairingStatus(detailDevice.id),
+                onBack = { detailDeviceId = null },
+                onPair = { viewModel.requestPairingCode(detailDevice.id) },
+                onSubmitCode = { code -> viewModel.submitPairingCode(detailDevice.id, code) },
+                onCancel = { viewModel.cancelPairing(detailDevice.id) },
+                onForget = { viewModel.forgetPairing(detailDevice.id) },
+                modifier = Modifier.padding(padding),
+            )
+        } else when (destination) {
             Destination.Devices -> DevicesScreen(
                 devices = state.devices,
                 selectedDeviceId = state.selectedDeviceId,
                 discoveryStatus = state.discoveryStatus,
-                onSelectDevice = viewModel::selectDevice,
+                onSelectDevice = { deviceId ->
+                    viewModel.selectDevice(deviceId)
+                    detailDeviceId = deviceId
+                },
                 onStartDiscovery = viewModel::startDiscovery,
                 onStopDiscovery = viewModel::stopDiscovery,
                 modifier = Modifier.padding(padding),
             )
             Destination.Remote -> RemoteScreen(
                 device = state.selectedDevice,
-                onCommand = viewModel::handleCommand,
+                errorMessage = state.commandFeedback?.takeIf { it.surface == CommandSurface.Remote }?.message,
+                onCommand = { viewModel.handleCommand(it, CommandSurface.Remote) },
                 modifier = Modifier.padding(padding),
             )
             Destination.StbMode -> StbModeScreen(
                 device = state.selectedDevice,
                 shortcuts = state.shortcuts,
-                onCommand = viewModel::handleCommand,
+                errorMessage = state.commandFeedback?.takeIf { it.surface == CommandSurface.StbMode }?.message,
+                onCommand = { viewModel.handleCommand(it, CommandSurface.StbMode) },
                 modifier = Modifier.padding(padding),
             )
         }

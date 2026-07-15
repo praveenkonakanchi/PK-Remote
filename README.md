@@ -2,12 +2,12 @@
 
 Swift • SwiftUI • Google TV • Android TV • MIT
 
-PK Remote is an open-source Google TV and Android TV remote. The functional iOS MVP is built with SwiftUI; a native Android phone app is now being developed with Kotlin and Jetpack Compose. The iOS app discovers TVs on the local network, pairs securely using the code shown on the TV, and provides responsive remote, keyboard, media, and STB portal controls.
+PK Remote is an open-source Google TV and Android TV remote with native iOS and Android phone apps. Both apps discover TVs on the local network, pair securely using the code shown on the TV, and provide responsive remote, keyboard, media, and STB portal controls.
 
 ## Platform Status
 
 - **iOS:** Functional MVP with discovery, secure pairing, authenticated Remote v2 commands, keyboard input, STB controls, and app shortcuts.
-- **Android:** Native Kotlin/Jetpack Compose app under `android/` with Google TV discovery through Android NSD. Pairing and command transport are not implemented yet.
+- **Android:** Native Kotlin/Jetpack Compose app under `android/` with Android NSD discovery, secure pairing, authenticated Remote v2 commands, keyboard input, STB controls, and app launching. Shortcut editing and persistence remain in development.
 
 ## Current Features
 
@@ -56,10 +56,10 @@ PK Remote is an open-source Google TV and Android TV remote. The functional iOS 
 
 ```mermaid
 flowchart LR
-    A["PK Remote on iPhone"] -->|"Bonjour / mDNS"| B["Google TV discovery"]
+    A["PK Remote on iPhone or Android"] -->|"Bonjour / mDNS"| B["Google TV discovery"]
     B --> C["Selected TV"]
     C -->|"Pairing · TCP 6467"| D["Mutual TLS pairing"]
-    D --> E["Keychain identity + TV fingerprint"]
+    D --> E["Secure device identity + TV fingerprint"]
     E -->|"Remote v2 · TCP 6466"| F["Google TV commands"]
 ```
 
@@ -138,7 +138,9 @@ Support for additional apps depends on the app exposing a compatible Google TV R
 - [ ] Automated UI tests
 - [x] Android project and Compose UI foundation
 - [x] Android Google TV discovery
-- [ ] Android secure pairing and Remote v2 transport
+- [x] Android secure pairing and Remote v2 transport
+- [ ] Android shortcut editing and persistence
+- [ ] Android release polish and expanded device testing
 - [ ] App Store metadata, screenshots, and privacy details
 - [ ] App Store release
 
@@ -156,6 +158,7 @@ Support for additional apps depends on the app exposing a compatible Google TV R
 - TLS / mutual TLS
 - Google TV pairing and remote protocols
 - Security and Keychain services
+- Android Keystore
 - Apple `swift-certificates`
 
 ## Project Structure
@@ -206,7 +209,7 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 ./android/gradlew -p android :app:assembleDebug
 ```
 
-See [android/README.md](android/README.md) for the current milestone scope and planned Android architecture. The Android app can discover compatible TVs but does not pair or control them yet. Validate discovery on a physical Android phone connected to the TV's Wi-Fi; the Android Emulator's virtual `AndroidWifi` network does not reliably forward host-LAN mDNS advertisements.
+See [android/README.md](android/README.md) for the current milestone scope and Android architecture. The Android app can discover compatible TVs, pair securely, and send authenticated remote, STB, app-launch, and keyboard commands. Validate connectivity on a physical Android phone connected to the TV's Wi-Fi; the Android Emulator's virtual `AndroidWifi` network does not reliably forward host-LAN mDNS advertisements.
 
 ## Installing on a Personal iPhone
 
@@ -218,7 +221,7 @@ For everyday use during development, connecting the iPhone to Xcode and pressing
 
 ## Physical-device Validation
 
-Validated on a physical Google TV using secure pairing, persistent authentication, remote commands, keyboard input, Quick Settings, and verified Remote v2 app launching.
+Validated with physical iPhone and Android devices against a physical Google TV using secure pairing, persistent authentication, remote commands, keyboard input, Quick Settings, STB controls, and verified Remote v2 app launching.
 
 ## MVP Limitations
 

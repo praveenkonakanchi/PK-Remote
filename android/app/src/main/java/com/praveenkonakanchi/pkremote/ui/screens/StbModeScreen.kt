@@ -1,6 +1,8 @@
 package com.praveenkonakanchi.pkremote.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,10 +25,18 @@ import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +44,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.praveenkonakanchi.pkremote.model.RemoteAppShortcut
 import com.praveenkonakanchi.pkremote.model.RemoteCommand
@@ -46,10 +57,29 @@ import com.praveenkonakanchi.pkremote.ui.components.RemoteButton
 fun StbModeScreen(
     device: RemoteDevice?,
     shortcuts: List<RemoteAppShortcut>,
+    errorMessage: String? = null,
     onCommand: (RemoteCommand) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val enabled = device?.isPaired == true
+    var isKeyboardVisible by remember { mutableStateOf(false) }
+    var keyboardText by remember { mutableStateOf("") }
+
+    if (isKeyboardVisible) {
+        KeyboardInputDialog(
+            text = keyboardText,
+            onTextChange = { keyboardText = it },
+            onDismiss = {
+                isKeyboardVisible = false
+                keyboardText = ""
+            },
+            onSend = {
+                if (keyboardText.isNotEmpty()) onCommand(RemoteCommand.EnterText(keyboardText))
+                isKeyboardVisible = false
+                keyboardText = ""
+            },
+        )
+    }
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val sectionSpacing = if (maxHeight < 700.dp) 6.dp else 10.dp
         Column(
@@ -67,12 +97,21 @@ fun StbModeScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RemoteButton(RemoteCommand.Home, Modifier.weight(1f), Icons.Rounded.Home, enabled = enabled, onCommand = onCommand)
                 RemoteButton(RemoteCommand.Back, Modifier.weight(1f), Icons.AutoMirrored.Rounded.ArrowBack, enabled = enabled, onCommand = onCommand)
-                RemoteButton(RemoteCommand.Keyboard, Modifier.weight(1f), Icons.Rounded.Keyboard, enabled = enabled, onCommand = onCommand)
+                RemoteButton(
+                    RemoteCommand.Keyboard,
+                    Modifier.weight(1f),
+                    Icons.Rounded.Keyboard,
+                    enabled = enabled,
+                    onCommand = { isKeyboardVisible = true },
+                )
                 RemoteButton(RemoteCommand.StbSettings, Modifier.weight(1f), Icons.Rounded.Settings, enabled = enabled, onCommand = onCommand)
             }
             PortalControls(enabled, onCommand)
             MediaControls(enabled = enabled, onCommand = onCommand)
             ShortcutGrid(shortcuts, enabled, onCommand)
+            if (errorMessage != null) {
+                Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
             if (!enabled) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Lock, null, tint = Color(0xFFFF922B))
@@ -81,6 +120,39 @@ fun StbModeScreen(
             }
         }
     }
+}
+
+@Composable
+private fun KeyboardInputDialog(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSend: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("TV Keyboard") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Select a text field on your TV, then enter the text to send.")
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    label = { Text("Text") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { if (text.isNotEmpty()) onSend() }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onSend, enabled = text.isNotEmpty()) { Text("Send") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }
 
 @Composable
