@@ -98,6 +98,18 @@ final class AppState {
             : .unpaired
     }
 
+    func forgetPairing(for device: RemoteDevice) async {
+        await pairingService.cancelPairing(for: device)
+        await commandHandler.stopSession(for: device)
+        do {
+            try pairingCredentials.removePairing(for: device.id)
+            pairingStates[device.id] = .unpaired
+            commandError = nil
+        } catch {
+            pairingStates[device.id] = .failed(error.localizedDescription)
+        }
+    }
+
     func send(_ command: RemoteCommand) async {
         commandError = nil
         guard let selectedDevice else {
@@ -113,6 +125,11 @@ final class AppState {
             lastCommand = command
         } catch {
             commandError = error.localizedDescription
+            if let invalidationMessage = error.pairingInvalidationMessage {
+                await commandHandler.stopSession(for: selectedDevice)
+                try? pairingCredentials.removePairing(for: selectedDevice.id)
+                pairingStates[selectedDevice.id] = .invalidated(invalidationMessage)
+            }
         }
     }
 
@@ -160,5 +177,21 @@ final class AppState {
             deviceDiscovery: PlaceholderDeviceDiscovery(),
             pairingService: PreviewDevicePairingService()
         )
+    }
+}
+
+private extension Error {
+    var pairingInvalidationMessage: String? {
+        guard let error = self as? RemoteCommandTransportError else { return nil }
+        return switch error {
+        case .certificateChanged:
+            "Pairing is no longer valid because the TV certificate changed. Pair again to continue."
+        case .pairingRejected:
+            "Pairing is no longer valid because the TV rejected this app's certificate. Pair again to continue."
+        case .notPaired:
+            "No valid pairing credential exists for this TV. Pair again to continue."
+        default:
+            nil
+        }
     }
 }

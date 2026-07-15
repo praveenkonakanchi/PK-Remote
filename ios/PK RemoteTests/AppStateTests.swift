@@ -178,6 +178,47 @@ struct AppStateTests {
         )
     }
 
+    @Test func forgetPairingStopsTransportAndClearsCredential() async {
+        let handler = PairingRejectedCommandHandler()
+        let credentials = RecordingPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: handler,
+            pairingCredentials: credentials
+        )
+
+        await state.forgetPairing(for: .placeholder)
+
+        #expect(state.pairingState(for: .placeholder) == .unpaired)
+        #expect(await handler.stoppedDeviceIDs == [RemoteDevice.placeholder.id])
+        #expect(credentials.removedDeviceIDs == [RemoteDevice.placeholder.id])
+    }
+
+    @Test func certificateRejectionInvalidatesPairingAndAllowsPairAgain() async {
+        let handler = PairingRejectedCommandHandler()
+        let pairing = RecordingPairingService()
+        let credentials = RecordingPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: handler,
+            pairingService: pairing,
+            pairingCredentials: credentials
+        )
+
+        await state.send(.home)
+
+        let message = "Pairing is no longer valid because the TV rejected this app's certificate. Pair again to continue."
+        #expect(state.pairingState(for: .placeholder) == .invalidated(message))
+        #expect(!state.isSelectedDevicePaired)
+        #expect(credentials.removedDeviceIDs == [RemoteDevice.placeholder.id])
+        #expect(await handler.stoppedDeviceIDs == [RemoteDevice.placeholder.id])
+
+        await state.requestPairingCode(for: .placeholder)
+        #expect(state.pairingState(for: .placeholder) == .awaitingCode)
+    }
+
     private func settle() async {
         for _ in 0..<10 { await Task.yield() }
     }
@@ -194,6 +235,19 @@ private actor RecordingCommandHandler: RemoteCommandHandling {
 private struct FailingCommandHandler: RemoteCommandHandling {
     func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
         throw TestFailure.command
+    }
+}
+
+private actor PairingRejectedCommandHandler: RemoteCommandHandling {
+    private(set) var stoppedDeviceIDs: [RemoteDevice.ID] = []
+
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
+        throw RemoteCommandTransportError.pairingRejected
+    }
+
+    func stopSession(for device: RemoteDevice) async {
+        let deviceID = await device.id
+        stoppedDeviceIDs.append(deviceID)
     }
 }
 
@@ -250,5 +304,32 @@ private struct StubPairingCredentials: PairingCredentialChecking {
 
     func isPaired(deviceID: RemoteDevice.ID) -> Bool {
         pairedDeviceIDs.contains(deviceID)
+    }
+
+    func removePairing(for deviceID: RemoteDevice.ID) throws {}
+}
+
+private final class RecordingPairingCredentials: PairingCredentialChecking, @unchecked Sendable {
+    private let lock = NSLock()
+    private var pairedDeviceIDs: Set<RemoteDevice.ID>
+    private var removedIDs: [RemoteDevice.ID] = []
+
+    init(pairedDeviceIDs: Set<RemoteDevice.ID>) {
+        self.pairedDeviceIDs = pairedDeviceIDs
+    }
+
+    var removedDeviceIDs: [RemoteDevice.ID] {
+        lock.withLock { removedIDs }
+    }
+
+    func isPaired(deviceID: RemoteDevice.ID) -> Bool {
+        lock.withLock { pairedDeviceIDs.contains(deviceID) }
+    }
+
+    func removePairing(for deviceID: RemoteDevice.ID) throws {
+        lock.withLock {
+            pairedDeviceIDs.remove(deviceID)
+            removedIDs.append(deviceID)
+        }
     }
 }

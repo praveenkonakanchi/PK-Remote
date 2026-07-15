@@ -47,8 +47,12 @@ actor GoogleTVPairingService: DevicePairingService {
             sessions.removeValue(forKey: device.id)
             session.cancel()
         }
-        let certificateFingerprint = try await session.finish(code: code)
-        try credentialStore.save(certificateFingerprint, for: device.id)
+        let tvCertificateFingerprint = try await session.finish(code: code)
+        try credentialStore.save(
+            tvCertificateFingerprint: tvCertificateFingerprint,
+            clientCertificateFingerprint: session.clientCertificateFingerprint,
+            for: device.id
+        )
     }
 
     func cancelPairing(for device: RemoteDevice) async {
@@ -63,6 +67,8 @@ nonisolated private final class GoogleTVPairingSession: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.pk.PK-Remote.pairing")
     private var receiveBuffer = Data()
     private var connectionContinuation: CheckedContinuation<Void, Error>?
+
+    var clientCertificateFingerprint: Data { identity.certificateFingerprint }
 
     init(endpoint: NWEndpoint, identity: PairingIdentity) {
         self.identity = identity

@@ -4,6 +4,7 @@ enum DevicePairingState: Equatable, Sendable {
     case awaitingCode
     case pairing
     case paired
+    case invalidated(String)
     case failed(String)
 
     var isBusy: Bool {

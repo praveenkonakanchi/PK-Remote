@@ -68,15 +68,15 @@ PK Remote is an open-source Google TV and Android TV remote for iPhone, built wi
 ## Project Structure
 
 ```text
-PK Remote/
-├── App/              Shared application state
-├── Components/       Reusable remote-control views
-├── Features/         Devices, Remote, and STB Mode screens
-├── Models/           Semantic remote command types
-├── Services/         Discovery, pairing, identity, and protocol services
-├── Assets.xcassets/  App icons, colors, and image assets
-├── ContentView.swift App navigation shell
-└── PK_RemoteApp.swift
+PK-Remote/
+├── ios/
+│   ├── Configuration/       iOS configuration files
+│   ├── PK Remote/           SwiftUI app source and assets
+│   ├── PK Remote.xcodeproj/ Xcode project
+│   └── PK RemoteTests/      Unit tests
+├── docs/                    Screenshots and documentation
+├── README.md
+└── LICENSE
 ```
 
 ## Getting Started
@@ -87,7 +87,7 @@ PK Remote/
    git clone https://github.com/praveenkonakanchi/PK-Remote.git
    ```
 
-2. Open `PK Remote.xcodeproj` in Xcode.
+2. Open `ios/PK Remote.xcodeproj` in Xcode.
 3. Select the **PK Remote** target, open **Signing & Capabilities**, and choose your development team.
 4. Connect an iPhone, enable Developer Mode if prompted, and select it as the run destination.
 5. Build and run the `PK Remote` scheme.

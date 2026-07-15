@@ -72,6 +72,21 @@ struct DeviceDetailView: View {
         case .paired:
             Label("Paired", systemImage: "checkmark.shield.fill")
                 .foregroundStyle(.green)
+            Button("Pair Again") {
+                pairingCode = ""
+                Task { await appState.requestPairingCode(for: device) }
+            }
+            Button("Forget Pairing", role: .destructive) {
+                Task { await appState.forgetPairing(for: device) }
+            }
+
+        case .invalidated(let message):
+            Label(message, systemImage: "exclamationmark.shield.fill")
+                .foregroundStyle(.red)
+            Button("Pair Again") {
+                pairingCode = ""
+                Task { await appState.requestPairingCode(for: device) }
+            }
 
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
