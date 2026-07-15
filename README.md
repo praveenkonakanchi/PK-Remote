@@ -31,13 +31,19 @@ PK Remote is an open-source Google TV and Android TV remote for iPhone, built wi
 <table>
   <tr>
     <th>Devices</th>
+    <th>Pairing</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/devices.png" alt="Discovered and paired Google TV devices" width="320"></td>
+    <td><img src="docs/screenshots/pairing.png" alt="Paired Google TV details with pair-again and forget-pairing actions" width="320"></td>
+  </tr>
+  <tr>
     <th>Remote</th>
     <th>STB Mode</th>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/devices.png" alt="Discovered and paired Google TV devices" width="280"></td>
-    <td><img src="docs/screenshots/remote.png" alt="PK Remote navigation, volume, media, and number controls" width="280"></td>
-    <td><img src="docs/screenshots/stb-mode.png" alt="PK Remote STB Mode controls" width="280"></td>
+    <td><img src="docs/screenshots/remote.png" alt="PK Remote navigation, volume, media, and number controls" width="320"></td>
+    <td><img src="docs/screenshots/stb-mode.png" alt="PK Remote STB Mode controls and app shortcuts" width="320"></td>
   </tr>
 </table>
 
