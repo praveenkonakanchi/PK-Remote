@@ -2,7 +2,7 @@
 
 This directory contains the native Android phone app for PK Remote. It lives beside `ios/` and uses the iOS implementation as the product and protocol reference.
 
-## Milestone 1: Compose UI foundation
+## Milestone 2: Google TV discovery
 
 Implemented:
 
@@ -15,10 +15,15 @@ Implemented:
 - `ViewModel` + `StateFlow` UI state
 - Accessibility descriptions and visible Material pressed states
 - Unit tests and a Compose navigation test
+- Google TV discovery through Android `NsdManager`
+- `_androidtvremote2._tcp` service filtering and stable service identity
+- Fresh endpoint resolution before a TV is shown, so stale cached advertisements are ignored
+- Searching, empty, failure, retry, refresh, found, and lost device states
+- Lifecycle-aware discovery that stops when the Devices screen leaves the foreground
+- Multicast reception support across the minimum Android version
 
 Not implemented in this milestone:
 
-- network discovery
 - pairing or TLS
 - Android Keystore identity management
 - Remote v2 command transport
@@ -68,21 +73,27 @@ Conceptually portable from iOS:
 - shortcut catalog, duplicate prevention, and eight-item limit
 - TV certificate fingerprint verification
 
-Android-specific implementations required later:
+Android-specific implementations:
 
-- `NsdManager` service discovery and fresh endpoint resolution
+- `NsdManager` service discovery and fresh endpoint resolution (implemented)
 - Android Keystore generation and recovery of the per-installation client identity
 - TLS socket configuration for ports 6467 and 6466
 - lifecycle-aware connection ownership and cancellation
 - DataStore persistence for shortcuts and non-secret state
 
-## Future permissions
+## Permissions
 
-Milestone 1 declares no network permissions. Discovery and transport milestones are expected to evaluate and narrowly add:
+Discovery narrowly declares:
 
 - `INTERNET`
-- `ACCESS_NETWORK_STATE`
 - `CHANGE_WIFI_MULTICAST_STATE`
-- Android-version-specific nearby Wi-Fi permission handling if required by the chosen NSD implementation
+
+The current target-SDK-36 `NsdManager` path does not require location or Nearby Devices runtime permission. Android 17/API 37 introduces mandatory local-network protections; that migration must use the Android system picker or explicitly request `ACCESS_LOCAL_NETWORK` when the target SDK is raised.
 
 The finished app must not depend on ADB.
+
+## Discovery validation
+
+Validate local-network discovery on a physical Android phone connected to the same Wi-Fi network as the TV. The Android Emulator normally uses the virtual `AndroidWifi` NAT network; mDNS advertisements from the host LAN may be missing, stale, or only partially forwarded there.
+
+Useful debug messages use the `PKRemoteDiscovery` Logcat tag and report when a service is found, resolved, lost, or cannot be resolved. A TV is added to the UI only after its current host and Remote v2 service port resolve successfully.

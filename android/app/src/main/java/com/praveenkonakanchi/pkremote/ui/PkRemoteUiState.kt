@@ -5,8 +5,9 @@ import com.praveenkonakanchi.pkremote.model.RemoteCommand
 import com.praveenkonakanchi.pkremote.model.RemoteDevice
 
 data class PkRemoteUiState(
-    val devices: List<RemoteDevice> = previewDevices,
-    val selectedDeviceId: String? = "peekay-tv",
+    val devices: List<RemoteDevice> = emptyList(),
+    val selectedDeviceId: String? = null,
+    val discoveryStatus: DiscoveryStatus = DiscoveryStatus.Idle,
     val shortcuts: List<RemoteAppShortcut> = RemoteAppShortcut.defaults,
     val lastCommand: RemoteCommand? = null,
 ) {
@@ -19,4 +20,10 @@ data class PkRemoteUiState(
             RemoteDevice(id = "peekay-tv", name = "peekay TV", isPaired = true),
         )
     }
+}
+
+sealed interface DiscoveryStatus {
+    data object Idle : DiscoveryStatus
+    data object Searching : DiscoveryStatus
+    data class Failed(val message: String) : DiscoveryStatus
 }

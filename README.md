@@ -7,7 +7,7 @@ PK Remote is an open-source Google TV and Android TV remote. The functional iOS 
 ## Platform Status
 
 - **iOS:** Functional MVP with discovery, secure pairing, authenticated Remote v2 commands, keyboard input, STB controls, and app shortcuts.
-- **Android:** Native Kotlin/Jetpack Compose UI foundation under `android/`. Milestone 1 is static and uses harmless local actions only; discovery, pairing, and command transport are not implemented yet.
+- **Android:** Native Kotlin/Jetpack Compose app under `android/` with Google TV discovery through Android NSD. Pairing and command transport are not implemented yet.
 
 ## Current Features
 
@@ -137,7 +137,8 @@ Support for additional apps depends on the app exposing a compatible Google TV R
 - [ ] Expanded real-device compatibility testing
 - [ ] Automated UI tests
 - [x] Android project and Compose UI foundation
-- [ ] Android discovery, secure pairing, and Remote v2 transport
+- [x] Android Google TV discovery
+- [ ] Android secure pairing and Remote v2 transport
 - [ ] App Store metadata, screenshots, and privacy details
 - [ ] App Store release
 
@@ -195,7 +196,7 @@ If a shortcut cannot be opened, STB Mode shows a temporary message beneath the s
 
 The iOS Simulator can be used to review the interface and run tests, but discovery, pairing, and remote commands should be validated on a physical iPhone and compatible TV.
 
-### Android UI foundation
+### Android
 
 Open `android/` in Android Studio, or build from the repository root:
 
@@ -205,7 +206,7 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 ./android/gradlew -p android :app:assembleDebug
 ```
 
-See [android/README.md](android/README.md) for the current milestone scope and planned Android architecture. The Android app does not control a TV yet.
+See [android/README.md](android/README.md) for the current milestone scope and planned Android architecture. The Android app can discover compatible TVs but does not pair or control them yet. Validate discovery on a physical Android phone connected to the TV's Wi-Fi; the Android Emulator's virtual `AndroidWifi` network does not reliably forward host-LAN mDNS advertisements.
 
 ## Installing on a Personal iPhone
 
