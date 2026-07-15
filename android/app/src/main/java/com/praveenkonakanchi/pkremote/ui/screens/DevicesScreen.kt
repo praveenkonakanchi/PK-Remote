@@ -15,14 +15,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Circle
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.TvOff
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,14 +40,23 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.praveenkonakanchi.pkremote.model.RemoteDevice
+import com.praveenkonakanchi.pkremote.ui.DiscoveryStatus
 
 @Composable
 fun DevicesScreen(
     devices: List<RemoteDevice>,
     selectedDeviceId: String?,
+    discoveryStatus: DiscoveryStatus,
     onSelectDevice: (String) -> Unit,
+    onStartDiscovery: () -> Unit,
+    onStopDiscovery: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    LifecycleStartEffect(Unit) {
+        onStartDiscovery()
+        onStopOrDispose { onStopDiscovery() }
+    }
+
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -49,25 +65,73 @@ fun DevicesScreen(
             Text("Devices", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             IconButton(
-                onClick = {},
+                onClick = onStartDiscovery,
+                enabled = discoveryStatus != DiscoveryStatus.Searching,
                 modifier = Modifier.semantics { contentDescription = "Refresh devices" },
             ) {
-                Icon(Icons.Rounded.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                if (discoveryStatus == DiscoveryStatus.Searching) {
+                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
         Text("Google TV", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            LazyColumn {
-                items(devices, key = { it.id }) { device ->
-                    DeviceRow(
-                        device = device,
-                        selected = device.id == selectedDeviceId,
-                        onClick = { onSelectDevice(device.id) },
-                    )
+        if (devices.isEmpty()) {
+            EmptyDiscoveryState(
+                discoveryStatus = discoveryStatus,
+                onRetry = onStartDiscovery,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        } else {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                LazyColumn {
+                    items(devices, key = { it.id }) { device ->
+                        DeviceRow(
+                            device = device,
+                            selected = device.id == selectedDeviceId,
+                            onClick = { onSelectDevice(device.id) },
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyDiscoveryState(
+    discoveryStatus: DiscoveryStatus,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val (title, description) = when (discoveryStatus) {
+        DiscoveryStatus.Idle -> "No TVs found" to "Make sure your TV is on and connected to the same Wi-Fi network."
+        DiscoveryStatus.Searching -> "Searching" to "Looking for Google TV devices on your local network."
+        is DiscoveryStatus.Failed -> "Discovery failed" to discoveryStatus.message
+    }
+    val icon = when (discoveryStatus) {
+        DiscoveryStatus.Idle -> Icons.Rounded.TvOff
+        DiscoveryStatus.Searching -> Icons.Rounded.Search
+        is DiscoveryStatus.Failed -> Icons.Rounded.WarningAmber
+    }
+
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(24.dp),
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            when (discoveryStatus) {
+                DiscoveryStatus.Searching -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                is DiscoveryStatus.Failed -> Button(onClick = onRetry) { Text("Try again") }
+                DiscoveryStatus.Idle -> Unit
             }
         }
     }
@@ -99,9 +163,14 @@ private fun DeviceRow(device: RemoteDevice, selected: Boolean, onClick: () -> Un
         }
         Spacer(Modifier.weight(1f))
         when {
+            selected -> Icon(Icons.Rounded.CheckCircle, "Selected", tint = MaterialTheme.colorScheme.primary)
             device.isPaired -> Icon(Icons.Rounded.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
-            device.isAvailable -> Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF2EC866))
-            selected -> Text("Selected", style = MaterialTheme.typography.labelSmall)
+            device.isAvailable -> Icon(
+                Icons.Rounded.Circle,
+                "Available",
+                tint = Color(0xFF2EC866),
+                modifier = Modifier.size(14.dp),
+            )
         }
     }
 }

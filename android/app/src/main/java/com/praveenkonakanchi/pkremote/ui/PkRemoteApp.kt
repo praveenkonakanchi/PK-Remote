@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,7 +32,15 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun PkRemoteApp(viewModel: PkRemoteViewModel = viewModel()) {
+fun PkRemoteApp() {
+    val context = LocalContext.current.applicationContext
+    val factory = remember(context) { PkRemoteViewModel.factory(context) }
+    val viewModel: PkRemoteViewModel = viewModel(factory = factory)
+    PkRemoteApp(viewModel)
+}
+
+@Composable
+fun PkRemoteApp(viewModel: PkRemoteViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var destinationName by rememberSaveable { mutableStateOf(Destination.Devices.name) }
     val destination = remember(destinationName) { Destination.valueOf(destinationName) }
@@ -54,7 +63,10 @@ fun PkRemoteApp(viewModel: PkRemoteViewModel = viewModel()) {
             Destination.Devices -> DevicesScreen(
                 devices = state.devices,
                 selectedDeviceId = state.selectedDeviceId,
+                discoveryStatus = state.discoveryStatus,
                 onSelectDevice = viewModel::selectDevice,
+                onStartDiscovery = viewModel::startDiscovery,
+                onStopDiscovery = viewModel::stopDiscovery,
                 modifier = Modifier.padding(padding),
             )
             Destination.Remote -> RemoteScreen(
