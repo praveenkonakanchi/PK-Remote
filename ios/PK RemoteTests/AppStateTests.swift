@@ -141,6 +141,24 @@ struct AppStateTests {
         #expect(state.commandError == TestFailure.command.localizedDescription)
     }
 
+    @Test func rejectedAppLaunchShowsInstallGuidanceWithShortcutName() async {
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: AppLaunchRejectedCommandHandler(),
+            pairingCredentials: StubPairingCredentials(
+                pairedDeviceIDs: [RemoteDevice.placeholder.id]
+            )
+        )
+
+        await state.send(.launchApp("https://www.youtube.com/"))
+
+        #expect(
+            state.commandError
+                == "Couldn’t open YouTube. Make sure the app is installed on your TV, then try again."
+        )
+    }
+
     @Test func discoveryReplacesDevicesAndSelectsFirstResult() async {
         let livingRoom = RemoteDevice(name: "Living Room")
         let discovery = StubDeviceDiscovery()
@@ -351,6 +369,12 @@ private actor RecordingCommandHandler: RemoteCommandHandling {
 private struct FailingCommandHandler: RemoteCommandHandling {
     func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
         throw TestFailure.command
+    }
+}
+
+private struct AppLaunchRejectedCommandHandler: RemoteCommandHandling {
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
+        throw RemoteCommandTransportError.appLaunchRejected
     }
 }
 

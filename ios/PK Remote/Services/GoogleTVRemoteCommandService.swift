@@ -29,7 +29,7 @@ nonisolated enum RemoteCommandTransportError: LocalizedError {
         case .unsupportedCommand:
             "This remote command is not supported."
         case .appLaunchRejected:
-            "The TV could not open this shortcut. Edit or remove it and try again."
+            "Couldn’t open this app. Make sure it is installed on your TV, then try again."
         case .protocolFailure:
             "The TV returned an unexpected remote response."
         }

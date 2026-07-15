@@ -154,7 +154,16 @@ final class AppState {
             try await commandHandler.send(command, to: selectedDevice)
             lastCommand = command
         } catch {
-            commandError = error.localizedDescription
+            if case .launchApp(let identifier) = command,
+               error.isAppLaunchRejected {
+                let displayName = appShortcuts.first {
+                    Self.normalizedIdentifier($0.launchIdentifier)
+                        == Self.normalizedIdentifier(identifier)
+                }?.displayName ?? "this app"
+                commandError = "Couldn’t open \(displayName). Make sure the app is installed on your TV, then try again."
+            } else {
+                commandError = error.localizedDescription
+            }
             if let invalidationMessage = error.pairingInvalidationMessage {
                 await commandHandler.stopSession(for: selectedDevice)
                 try? pairingCredentials.removePairing(for: selectedDevice.id)
@@ -299,6 +308,12 @@ final class AppState {
 }
 
 private extension Error {
+    var isAppLaunchRejected: Bool {
+        guard let error = self as? RemoteCommandTransportError else { return false }
+        if case .appLaunchRejected = error { return true }
+        return false
+    }
+
     var pairingInvalidationMessage: String? {
         guard let error = self as? RemoteCommandTransportError else { return nil }
         return switch error {
