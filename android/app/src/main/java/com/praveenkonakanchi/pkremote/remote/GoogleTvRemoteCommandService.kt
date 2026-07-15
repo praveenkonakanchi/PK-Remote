@@ -7,6 +7,7 @@ import com.praveenkonakanchi.pkremote.pairing.PairingCredentialStore
 import com.praveenkonakanchi.pkremote.pairing.PairingIdentity
 import com.praveenkonakanchi.pkremote.pairing.PairingIdentityStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.MessageDigest
@@ -101,6 +103,8 @@ private class RemoteSession(
     private val outputLock = Any()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var monitorJob: Job? = null
+    private val appLaunchLock = Any()
+    private var pendingAppLaunch: CompletableDeferred<Unit>? = null
     @Volatile private var usable = false
     @Volatile private var imeCounter = 0
     @Volatile private var fieldCounter = 0
@@ -156,7 +160,7 @@ private class RemoteSession(
         Log.d(LogTag, "Sending ${command.accessibilityLabel}")
         when (command) {
             is RemoteCommand.EnterText -> sendPayload(RemoteProtocolCodec.text(command.value, imeCounter, fieldCounter))
-            is RemoteCommand.LaunchApp -> sendPayload(RemoteProtocolCodec.appLink(command.launchIdentifier))
+            is RemoteCommand.LaunchApp -> sendAppLink(command.launchIdentifier)
             RemoteCommand.GoogleTvQuickSettings -> {
                 sendPayload(RemoteProtocolCodec.key(command, RemoteKeyDirection.StartLong))
                 try {
@@ -171,6 +175,12 @@ private class RemoteSession(
 
     override fun close() {
         usable = false
+        synchronized(appLaunchLock) {
+            pendingAppLaunch?.completeExceptionally(
+                RemoteTransportException.ConnectionFailed("The remote session closed."),
+            )
+            pendingAppLaunch = null
+        }
         monitorJob?.cancel()
         scope.coroutineContext[Job]?.cancel()
         runCatching { socket.close() }
@@ -183,10 +193,7 @@ private class RemoteSession(
                     is RemoteProtocolMessage.SetActive -> sendPayload(RemoteProtocolCodec.setActive(message.value))
                     is RemoteProtocolMessage.Ping -> sendPayload(RemoteProtocolCodec.pingResponse(message.value))
                     is RemoteProtocolMessage.ImeBatchEdit -> updateIme(message)
-                    is RemoteProtocolMessage.RemoteError -> Log.d(
-                        LogTag,
-                        "TV response for field ${message.originalField}: ${if (message.isError) "rejected" else "accepted"}",
-                    )
+                    is RemoteProtocolMessage.RemoteError -> handleRemoteError(message)
                     else -> Unit
                 }
             }
@@ -202,6 +209,36 @@ private class RemoteSession(
         fieldCounter = message.fieldCounter
     }
 
+    private suspend fun sendAppLink(identifier: String) {
+        val feedback = CompletableDeferred<Unit>()
+        synchronized(appLaunchLock) {
+            pendingAppLaunch?.complete(Unit)
+            pendingAppLaunch = feedback
+        }
+        try {
+            sendPayload(RemoteProtocolCodec.appLink(identifier))
+            withTimeoutOrNull(AppLaunchFeedbackTimeoutMillis) { feedback.await() }
+        } finally {
+            synchronized(appLaunchLock) {
+                if (pendingAppLaunch === feedback) pendingAppLaunch = null
+            }
+        }
+    }
+
+    private fun handleRemoteError(message: RemoteProtocolMessage.RemoteError) {
+        Log.d(
+            LogTag,
+            "TV response for field ${message.originalField}: ${if (message.isError) "rejected" else "accepted"}",
+        )
+        if (message.originalField != AppLinkFieldNumber) return
+        val feedback = synchronized(appLaunchLock) { pendingAppLaunch }
+        if (message.isError) {
+            feedback?.completeExceptionally(RemoteTransportException.AppLaunchRejected)
+        } else {
+            feedback?.complete(Unit)
+        }
+    }
+
     private fun sendPayload(payload: ByteArray) = synchronized(outputLock) {
         RemoteProtocolCodec.writeFrame(socket.outputStream, payload)
     }
@@ -214,6 +251,8 @@ private class RemoteSession(
         const val RemotePort = 6466
         const val ConnectTimeoutMillis = 15_000
         const val HandshakeReadTimeoutMillis = 15_000
+        const val AppLaunchFeedbackTimeoutMillis = 500L
+        const val AppLinkFieldNumber = 90
         const val LogTag = "PKRemoteTransport"
     }
 }

@@ -8,6 +8,7 @@ import com.praveenkonakanchi.pkremote.discovery.DeviceDiscovery
 import com.praveenkonakanchi.pkremote.discovery.DeviceDiscoveryEvent
 import com.praveenkonakanchi.pkremote.discovery.NsdDeviceDiscovery
 import com.praveenkonakanchi.pkremote.model.RemoteCommand
+import com.praveenkonakanchi.pkremote.model.RemoteAppShortcut
 import com.praveenkonakanchi.pkremote.model.RemoteDevice
 import com.praveenkonakanchi.pkremote.pairing.DevicePairingService
 import com.praveenkonakanchi.pkremote.pairing.GoogleTvPairingService
@@ -16,6 +17,8 @@ import com.praveenkonakanchi.pkremote.pairing.PairingIdentityStore
 import com.praveenkonakanchi.pkremote.remote.GoogleTvRemoteCommandService
 import com.praveenkonakanchi.pkremote.remote.RemoteCommandService
 import com.praveenkonakanchi.pkremote.remote.RemoteTransportException
+import com.praveenkonakanchi.pkremote.shortcuts.AppShortcutStore
+import com.praveenkonakanchi.pkremote.shortcuts.SharedPreferencesAppShortcutStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,10 +31,17 @@ class PkRemoteViewModel internal constructor(
     private val pairingService: DevicePairingService? = null,
     private val credentialStore: PairingCredentialStore? = null,
     private val remoteService: RemoteCommandService? = null,
+    private val shortcutStore: AppShortcutStore? = null,
     initialState: PkRemoteUiState = PkRemoteUiState(),
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(initialState)
+    private val storedShortcuts = shortcutStore?.load()
+    private val initialShortcuts = sanitizeShortcuts(storedShortcuts ?: initialState.shortcuts)
+    private val _uiState = MutableStateFlow(initialState.copy(shortcuts = initialShortcuts))
     val uiState: StateFlow<PkRemoteUiState> = _uiState.asStateFlow()
+
+    init {
+        if (storedShortcuts == null) shortcutStore?.save(initialShortcuts)
+    }
 
     fun selectDevice(deviceId: String) {
         _uiState.update { state ->
@@ -84,7 +94,17 @@ class PkRemoteViewModel internal constructor(
                             )
                         }
                     }
-                    showCommandFeedback(surface, error.message ?: "Could not send the remote command.")
+                    val message = if (
+                        command is RemoteCommand.LaunchApp && error is RemoteTransportException.AppLaunchRejected
+                    ) {
+                        val displayName = _uiState.value.shortcuts.firstOrNull {
+                            normalizedIdentifier(it.launchIdentifier) == normalizedIdentifier(command.launchIdentifier)
+                        }?.displayName ?: "this app"
+                        "Couldn’t open $displayName. Make sure the app is installed on your TV, then try again."
+                    } else {
+                        error.message ?: "Could not send the remote command."
+                    }
+                    showCommandFeedback(surface, message)
                 }
         }
     }
@@ -171,6 +191,45 @@ class PkRemoteViewModel internal constructor(
             }
     }
 
+    fun addShortcut(shortcut: RemoteAppShortcut) {
+        val state = _uiState.value
+        if (state.shortcuts.size >= RemoteAppShortcut.MaximumCount) return
+        val normalized = normalizeShortcut(shortcut)
+        if (!isValidShortcut(normalized) || containsDuplicate(state.shortcuts, normalized)) {
+            showCommandFeedback(CommandSurface.StbMode, "That app is already in your shortcuts.")
+            return
+        }
+        updateShortcuts(state.shortcuts + normalized)
+    }
+
+    fun replaceShortcut(shortcut: RemoteAppShortcut) {
+        val state = _uiState.value
+        val index = state.shortcuts.indexOfFirst { it.id == shortcut.id }
+        if (index < 0) return
+        val normalized = normalizeShortcut(shortcut)
+        if (!isValidShortcut(normalized) || containsDuplicate(state.shortcuts, normalized, shortcut.id)) {
+            showCommandFeedback(CommandSurface.StbMode, "That app is already in your shortcuts.")
+            return
+        }
+        val updated = state.shortcuts.toMutableList().apply { set(index, normalized) }
+        updateShortcuts(updated)
+    }
+
+    fun removeShortcut(shortcutId: String) {
+        updateShortcuts(_uiState.value.shortcuts.filterNot { it.id == shortcutId })
+    }
+
+    fun moveShortcut(shortcutId: String, offset: Int) {
+        val shortcuts = _uiState.value.shortcuts.toMutableList()
+        val source = shortcuts.indexOfFirst { it.id == shortcutId }
+        if (source < 0) return
+        val destination = (source + offset).coerceIn(0, shortcuts.lastIndex)
+        if (source == destination) return
+        val shortcut = shortcuts.removeAt(source)
+        shortcuts.add(destination, shortcut)
+        updateShortcuts(shortcuts)
+    }
+
     override fun onCleared() {
         deviceDiscovery.stop()
         pairingService?.close()
@@ -232,11 +291,50 @@ class PkRemoteViewModel internal constructor(
                         pairingService = GoogleTvPairingService(identityStore, credentialStore),
                         credentialStore = credentialStore,
                         remoteService = GoogleTvRemoteCommandService(identityStore, credentialStore),
+                        shortcutStore = SharedPreferencesAppShortcutStore(applicationContext),
                     ),
                 ) ?: error("Unsupported ViewModel: ${modelClass.name}")
             }
         }
     }
+
+    private fun updateShortcuts(shortcuts: List<RemoteAppShortcut>) {
+        val sanitized = sanitizeShortcuts(shortcuts)
+        shortcutStore?.save(sanitized)
+        _uiState.update { it.copy(shortcuts = sanitized) }
+    }
+
+    private fun sanitizeShortcuts(shortcuts: List<RemoteAppShortcut>): List<RemoteAppShortcut> =
+        shortcuts.asSequence()
+            .map(::normalizeShortcut)
+            .filter(::isValidShortcut)
+            .distinctBy { normalizedIdentifier(it.launchIdentifier) }
+            .take(RemoteAppShortcut.MaximumCount)
+            .toList()
+
+    private fun normalizeShortcut(shortcut: RemoteAppShortcut): RemoteAppShortcut = shortcut.copy(
+        displayName = shortcut.displayName.trim(),
+        launchIdentifier = shortcut.launchIdentifier.trim(),
+        initials = shortcut.initials.trim().take(2).uppercase().ifEmpty {
+            shortcut.displayName.trim().take(1).uppercase().ifEmpty { "•" }
+        },
+    )
+
+    private fun isValidShortcut(shortcut: RemoteAppShortcut): Boolean =
+        shortcut.displayName.isNotEmpty() && shortcut.launchIdentifier.isNotEmpty()
+
+    private fun containsDuplicate(
+        shortcuts: List<RemoteAppShortcut>,
+        candidate: RemoteAppShortcut,
+        excludingId: String? = null,
+    ): Boolean = shortcuts.any { existing ->
+        existing.id != excludingId && (
+            (candidate.catalogId != null && existing.catalogId == candidate.catalogId) ||
+                normalizedIdentifier(existing.launchIdentifier) == normalizedIdentifier(candidate.launchIdentifier)
+            )
+    }
+
+    private fun normalizedIdentifier(identifier: String) = identifier.trim().lowercase().trimEnd('/')
 }
 
 private fun PkRemoteUiState.withPairingStatus(deviceId: String, status: PairingStatus): PkRemoteUiState =
