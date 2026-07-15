@@ -22,7 +22,7 @@ class PkRemoteAppTest {
             PkRemoteTheme { PkRemoteApp(viewModel = viewModel) }
         }
 
-        composeRule.onNodeWithText("Devices").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Refresh devices").assertIsDisplayed()
         composeRule.onNodeWithText("Remote").performClick()
         composeRule.onNodeWithContentDescription("Select").assertIsDisplayed()
         composeRule.onNodeWithText("STB Mode").performClick()
