@@ -21,6 +21,7 @@ PK Remote is an open-source Google TV and Android TV remote for iPhone, built wi
 - Duplicate-free Popular Apps picker backed by a physically verified Remote v2 catalog
 - Built-in shortcuts for YouTube, Netflix, Prime Video, Hulu, Peacock, Pluto TV, Apple TV, Disney+, Aha, Max, Tubi, and Play Store
 - Advanced custom shortcut editor for TVs that support additional Remote v2 launch identifiers
+- Clear, tab-local command feedback that automatically dismisses after a few seconds
 - Native Google TV quick-settings panel from the Remote settings button
 - Accessibility labels and SwiftUI previews
 - Native light and dark appearance support
@@ -107,6 +108,8 @@ PK-Remote/
 6. Keep the iPhone and TV on the same local network, select the discovered TV, and enter the six-character code shown on the TV.
 
 In **STB Mode**, tap the plus button to choose from apps verified to launch through Google TV Remote v2. Apps already present in the grid are removed from the picker automatically. Long-press an existing shortcut to replace, reorder, or remove it. The plus button is hidden after all eight slots are filled. Raw launch identifiers are available only under **Advanced / Custom Shortcut**.
+
+If a shortcut cannot be opened, STB Mode shows a temporary message beneath the shortcut grid suggesting that the app may need to be installed. Command feedback remains on the screen where it occurred, clears when switching tabs, and automatically dismisses after a few seconds.
 
 The iOS Simulator can be used to review the interface and run tests, but discovery, pairing, and remote commands should be validated on a physical iPhone and compatible TV.
 
