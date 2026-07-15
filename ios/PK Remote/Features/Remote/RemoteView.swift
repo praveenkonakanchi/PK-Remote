@@ -2,6 +2,9 @@ import SwiftUI
 
 struct RemoteView: View {
     let appState: AppState
+    @State private var commandError: String?
+    @State private var errorDismissTask: Task<Void, Never>?
+    @State private var isVisible = false
 
     var body: some View {
         NavigationStack {
@@ -16,6 +19,9 @@ struct RemoteView: View {
                         .font(.footnote)
                         .foregroundStyle(.orange)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if let commandError {
+                        transientError(commandError)
                     }
                     HStack(spacing: 10) {
                         RemoteButton(.power, systemImage: "power", action: handle)
@@ -36,13 +42,6 @@ struct RemoteView: View {
                         .disabled(!appState.isSelectedDevicePaired)
                     NumberPadView(action: handle)
                         .disabled(!appState.isSelectedDevicePaired)
-                    if let commandError = appState.commandError {
-                        Label(commandError, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityLabel("Remote error: \(commandError)")
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -50,7 +49,22 @@ struct RemoteView: View {
             .scrollIndicators(.hidden)
             .navigationTitle("Remote")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { isVisible = true }
+            .onDisappear {
+                isVisible = false
+                errorDismissTask?.cancel()
+                commandError = nil
+            }
         }
+    }
+
+    private func transientError(_ message: String) -> some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(.footnote)
+            .foregroundStyle(.red)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Remote error: \(message)")
+            .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private var deviceHeader: some View {
@@ -94,7 +108,22 @@ struct RemoteView: View {
     }
 
     private func handle(_ command: RemoteCommand) {
-        Task { await appState.send(command) }
+        Task {
+            let message = await appState.send(command)
+            guard isVisible else { return }
+            showTransientError(message)
+        }
+    }
+
+    private func showTransientError(_ message: String?) {
+        errorDismissTask?.cancel()
+        withAnimation { commandError = message }
+        guard let message else { return }
+        errorDismissTask = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled, commandError == message else { return }
+            withAnimation { commandError = nil }
+        }
     }
 }
 

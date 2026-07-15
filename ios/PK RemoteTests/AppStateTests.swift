@@ -119,12 +119,12 @@ struct AppStateTests {
             pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
         )
 
-        await state.send(.volumeUp)
+        let error = await state.send(.volumeUp)
 
         #expect(await handler.commands == [.volumeUp])
         #expect(state.lastCommand == .volumeUp)
         #expect(state.lastActionDescription == "Volume up")
-        #expect(state.commandError == nil)
+        #expect(error == nil)
     }
 
     @Test func preservesLastCommandWhenSendingFails() async {
@@ -135,10 +135,10 @@ struct AppStateTests {
             pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
         )
 
-        await state.send(.power)
+        let error = await state.send(.power)
 
         #expect(state.lastCommand == nil)
-        #expect(state.commandError == TestFailure.command.localizedDescription)
+        #expect(error == TestFailure.command.localizedDescription)
     }
 
     @Test func rejectedAppLaunchShowsInstallGuidanceWithShortcutName() async {
@@ -151,10 +151,10 @@ struct AppStateTests {
             )
         )
 
-        await state.send(.launchApp("https://www.youtube.com/"))
+        let error = await state.send(.launchApp("https://www.youtube.com/"))
 
         #expect(
-            state.commandError
+            error
                 == "Couldn’t open YouTube. Make sure the app is installed on your TV, then try again."
         )
     }
@@ -200,10 +200,10 @@ struct AppStateTests {
             pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [])
         )
 
-        await state.send(.home)
+        let error = await state.send(.home)
 
         #expect(await handler.commands.isEmpty)
-        #expect(state.commandError == "Pair this TV from Devices before using the remote.")
+        #expect(error == "Pair this TV from Devices before using the remote.")
     }
 
     @Test func discoveryExposesFailureWithoutDiscardingDevices() async {

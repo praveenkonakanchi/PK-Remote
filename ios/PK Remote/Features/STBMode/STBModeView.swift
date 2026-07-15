@@ -14,6 +14,9 @@ struct STBModeView: View {
     @State private var isKeyboardPresented = false
     @State private var isAddingShortcut = false
     @State private var shortcutBeingEdited: RemoteAppShortcut?
+    @State private var commandError: String?
+    @State private var errorDismissTask: Task<Void, Never>?
+    @State private var isVisible = false
 
     private let actions: [(command: RemoteCommand, title: String, color: Color)] = [
         (.view, "View", .red),
@@ -45,14 +48,20 @@ struct STBModeView: View {
                     MediaControlsView(action: send)
                         .disabled(!appState.isSelectedDevicePaired)
                     appShortcutGrid
+                    statusMessage
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, min(10, sectionSpacing))
                 .frame(maxHeight: .infinity, alignment: .top)
-                .overlay(alignment: .bottom) { statusMessage }
             }
             .navigationTitle("STB Mode")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { isVisible = true }
+            .onDisappear {
+                isVisible = false
+                errorDismissTask?.cancel()
+                commandError = nil
+            }
             .sheet(isPresented: $isKeyboardPresented) {
                 STBKeyboardSheet { text in
                     send(.text(text))
@@ -86,7 +95,7 @@ struct STBModeView: View {
                 systemImage: "lock.fill",
                 color: .orange
             )
-        } else if let commandError = appState.commandError {
+        } else if let commandError {
             statusLabel(
                 commandError,
                 systemImage: "exclamationmark.triangle.fill",
@@ -107,8 +116,8 @@ struct STBModeView: View {
             .lineLimit(2)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
-            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private var appShortcutGrid: some View {
@@ -234,7 +243,22 @@ struct STBModeView: View {
     }
 
     private func send(_ command: RemoteCommand) {
-        Task { await appState.send(command) }
+        Task {
+            let message = await appState.send(command)
+            guard isVisible else { return }
+            showTransientError(message)
+        }
+    }
+
+    private func showTransientError(_ message: String?) {
+        errorDismissTask?.cancel()
+        withAnimation { commandError = message }
+        guard let message else { return }
+        errorDismissTask = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled, commandError == message else { return }
+            withAnimation { commandError = nil }
+        }
     }
 }
 

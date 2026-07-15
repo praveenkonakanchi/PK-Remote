@@ -16,7 +16,6 @@ final class AppState {
     var selectedDeviceID: RemoteDevice.ID?
     private(set) var discoveryState: DiscoveryState = .idle
     private(set) var lastCommand: RemoteCommand?
-    private(set) var commandError: String?
     private(set) var pairingStates: [RemoteDevice.ID: DevicePairingState] = [:]
     private(set) var appShortcuts: [RemoteAppShortcut]
 
@@ -134,41 +133,40 @@ final class AppState {
         do {
             try pairingCredentials.removePairing(for: device.id)
             pairingStates[device.id] = .unpaired
-            commandError = nil
         } catch {
             pairingStates[device.id] = .failed(error.localizedDescription)
         }
     }
 
-    func send(_ command: RemoteCommand) async {
-        commandError = nil
+    func send(_ command: RemoteCommand) async -> String? {
         guard let selectedDevice else {
-            commandError = "Select a TV before sending a command."
-            return
+            return "Select a TV before sending a command."
         }
         guard pairingState(for: selectedDevice) == .paired else {
-            commandError = "Pair this TV from Devices before using the remote."
-            return
+            return "Pair this TV from Devices before using the remote."
         }
         do {
             try await commandHandler.send(command, to: selectedDevice)
             lastCommand = command
+            return nil
         } catch {
+            let message: String
             if case .launchApp(let identifier) = command,
                error.isAppLaunchRejected {
                 let displayName = appShortcuts.first {
                     Self.normalizedIdentifier($0.launchIdentifier)
                         == Self.normalizedIdentifier(identifier)
                 }?.displayName ?? "this app"
-                commandError = "Couldn’t open \(displayName). Make sure the app is installed on your TV, then try again."
+                message = "Couldn’t open \(displayName). Make sure the app is installed on your TV, then try again."
             } else {
-                commandError = error.localizedDescription
+                message = error.localizedDescription
             }
             if let invalidationMessage = error.pairingInvalidationMessage {
                 await commandHandler.stopSession(for: selectedDevice)
                 try? pairingCredentials.removePairing(for: selectedDevice.id)
                 pairingStates[selectedDevice.id] = .invalidated(invalidationMessage)
             }
+            return message
         }
     }
 
