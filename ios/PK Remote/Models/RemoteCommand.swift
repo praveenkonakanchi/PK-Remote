@@ -2,19 +2,22 @@ import Foundation
 
 nonisolated enum RemoteCommand: Hashable, Sendable {
     case power, home, back, menu
+    case openGoogleTVSettings
     case up, down, left, right, select
     case volumeUp, volumeDown, mute
     case digit(Int)
     case previous, playPause, next, rewind, fastForward
     case view, sort, favorites, find
     case text(String)
+    case launchApp(String)
 
     var accessibilityLabel: String {
         switch self {
         case .power: "Power"
         case .home: "Home"
         case .back: "Back"
-        case .menu: "Settings"
+        case .menu: "Open STB settings"
+        case .openGoogleTVSettings: "Open Google TV settings"
         case .up: "Navigate up"
         case .down: "Navigate down"
         case .left: "Navigate left"
@@ -34,6 +37,14 @@ nonisolated enum RemoteCommand: Hashable, Sendable {
         case .favorites: "Favorites"
         case .find: "Find"
         case .text: "Enter text"
+        case .launchApp: "Open app"
+        }
+    }
+
+    var retriesAfterTransportFailure: Bool {
+        switch self {
+        case .launchApp, .openGoogleTVSettings: false
+        default: true
         }
     }
 }

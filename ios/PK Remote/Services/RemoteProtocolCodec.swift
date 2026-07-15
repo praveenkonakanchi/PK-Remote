@@ -3,6 +3,7 @@ import Foundation
 nonisolated enum RemoteProtocolMessage: Equatable, Sendable {
     case configure
     case setActive(Int)
+    case remoteError(isError: Bool, originalField: Int?)
     case ping(Int)
     case imeBatchEdit(imeCounter: Int, fieldCounter: Int)
     case other
@@ -10,6 +11,12 @@ nonisolated enum RemoteProtocolMessage: Equatable, Sendable {
 
 nonisolated enum RemoteProtocolCodecError: Error {
     case malformedMessage
+}
+
+nonisolated enum RemoteKeyDirection: Int, Sendable {
+    case startLong = 1
+    case endLong = 2
+    case short = 3
 }
 
 nonisolated struct RemoteProtocolCodec: Sendable {
@@ -39,7 +46,10 @@ nonisolated struct RemoteProtocolCodec: Sendable {
         envelope(field: 9, payload: message([field(1, varint: UInt64(value))]))
     }
 
-    static func key(_ command: RemoteCommand) throws -> Data {
+    static func key(
+        _ command: RemoteCommand,
+        direction: RemoteKeyDirection = .short
+    ) throws -> Data {
         guard let keyCode = AndroidTVKeyCode(command: command) else {
             throw RemoteCommandTransportError.unsupportedCommand
         }
@@ -47,8 +57,19 @@ nonisolated struct RemoteProtocolCodec: Sendable {
             field: 10,
             payload: message([
                 field(1, varint: UInt64(keyCode.rawValue)),
-                field(2, varint: 3)
+                field(2, varint: UInt64(direction.rawValue))
             ])
+        )
+    }
+
+    static func appLink(_ identifier: String) throws -> Data {
+        let identifier = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !identifier.isEmpty else {
+            throw RemoteCommandTransportError.unsupportedCommand
+        }
+        return envelope(
+            field: 90,
+            payload: message([field(1, string: identifier)])
         )
     }
 
@@ -83,6 +104,12 @@ nonisolated struct RemoteProtocolCodec: Sendable {
                 return .configure
             case 2:
                 return .setActive(try firstVarint(in: payload))
+            case 3:
+                let error = try remoteError(in: payload)
+                return .remoteError(
+                    isError: error.isError,
+                    originalField: error.originalField
+                )
             case 8:
                 return .ping(try firstVarint(in: payload))
             case 21:
@@ -137,6 +164,25 @@ nonisolated struct RemoteProtocolCodec: Sendable {
             if entry.number == 2 { fieldCounter = Int(value) }
         }
         return (imeCounter, fieldCounter)
+    }
+
+    private static func remoteError(in data: Data) throws -> (
+        isError: Bool,
+        originalField: Int?
+    ) {
+        var isError = false
+        var originalField: Int?
+        var reader = RemoteProtobufReader(data: data)
+        while let entry = try reader.next() {
+            if entry.number == 1, case .varint(let value) = entry.value {
+                isError = value != 0
+            }
+            if entry.number == 2, case .bytes(let message) = entry.value {
+                var messageReader = RemoteProtobufReader(data: message)
+                originalField = try messageReader.next()?.number
+            }
+        }
+        return (isError, originalField)
     }
 
     private static func message(_ fields: [Data]) -> Data {
@@ -219,6 +265,7 @@ nonisolated private enum AndroidTVKeyCode: Int {
         case .home: self = .home
         case .back: self = .back
         case .menu: self = .menu
+        case .openGoogleTVSettings: self = .home
         case .up: self = .up
         case .down: self = .down
         case .left: self = .left
@@ -240,7 +287,7 @@ nonisolated private enum AndroidTVKeyCode: Int {
         case .sort: self = .programGreen
         case .favorites: self = .programYellow
         case .find: self = .programBlue
-        case .text: return nil
+        case .text, .launchApp: return nil
         }
     }
 }

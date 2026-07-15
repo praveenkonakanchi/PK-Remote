@@ -13,6 +13,103 @@ struct AppStateTests {
         #expect(state.lastActionDescription == "Ready")
     }
 
+    @Test func stbUtilityControlsPreserveSemanticCommands() {
+        #expect(
+            STBModeView.utilityActions
+                == [.remote(.home), .remote(.back), .keyboard, .remote(.menu)]
+        )
+        #expect(RemoteCommand.menu != .openGoogleTVSettings)
+    }
+
+    @Test func verifiedCatalogContainsOnlyPhysicallyValidatedApps() {
+        #expect(RemoteAppCatalogItem.verified.map(\.displayName) == [
+            "YouTube", "Netflix", "Prime Video", "Hulu", "Peacock", "Pluto TV",
+            "Apple TV", "Disney+", "Aha", "Max", "Tubi", "Play Store"
+        ])
+        #expect(!RemoteAppCatalogItem.verified.contains { $0.displayName == "STBEmu" })
+        #expect(!RemoteAppCatalogItem.verified.contains { $0.displayName == "Willow" })
+        #expect(!RemoteAppCatalogItem.verified.contains { $0.displayName == "ZEE5" })
+    }
+
+    @Test func firstLaunchPersistsTheConfiguredDefaults() {
+        let store = MemoryAppShortcutStore()
+        let state = AppState(appShortcutStore: store)
+
+        #expect(state.appShortcuts == RemoteAppShortcut.defaults)
+        #expect(state.appShortcuts.map(\.displayName) == [
+            "YouTube", "Netflix", "Prime Video", "Aha"
+        ])
+        #expect(store.shortcuts == state.appShortcuts)
+    }
+
+    @Test func shortcutsCanBeAddedOnlyUpToEight() {
+        let state = AppState(appShortcutStore: MemoryAppShortcutStore())
+
+        for item in RemoteAppCatalogItem.verified
+            .filter({ candidate in
+                !state.appShortcuts.contains { $0.catalogID == candidate.id }
+            })
+            .prefix(4) {
+            #expect(state.addAppShortcut(item.makeShortcut()))
+        }
+        #expect(state.appShortcuts.count == 8)
+        #expect(!state.canAddAppShortcut)
+        #expect(!state.addAppShortcut(testShortcut(9)))
+        #expect(state.appShortcuts.count == 8)
+    }
+
+    @Test func defaultShortcutCanBeEditedAndRemoved() throws {
+        let state = AppState(appShortcutStore: MemoryAppShortcutStore())
+        var shortcut = try #require(state.appShortcuts.first)
+        shortcut.displayName = "My YouTube"
+        shortcut.icon = .system("play.rectangle.fill")
+
+        #expect(state.updateAppShortcut(shortcut))
+        #expect(state.appShortcuts.first?.displayName == "My YouTube")
+
+        state.removeAppShortcut(id: shortcut.id)
+        #expect(!state.appShortcuts.contains { $0.id == shortcut.id })
+    }
+
+    @Test func shortcutOrderPersistsAcrossAppStateRestoration() throws {
+        let store = MemoryAppShortcutStore()
+        let firstState = AppState(appShortcutStore: store)
+        let lastShortcut = try #require(firstState.appShortcuts.last)
+
+        firstState.moveAppShortcut(id: lastShortcut.id, by: -3)
+        let restoredState = AppState(appShortcutStore: store)
+
+        #expect(restoredState.appShortcuts.map(\.id) == firstState.appShortcuts.map(\.id))
+        #expect(restoredState.appShortcuts.first?.displayName == "Aha")
+    }
+
+    @Test func usedCatalogAppsDisappearAndReturnImmediately() throws {
+        let state = AppState(appShortcutStore: MemoryAppShortcutStore())
+        let hulu = try #require(
+            RemoteAppCatalogItem.verified.first { $0.id == "hulu" }
+        )
+
+        #expect(state.addAppShortcut(hulu.makeShortcut()))
+        #expect(!state.availableAppCatalogItems().contains { $0.id == hulu.id })
+
+        let shortcut = try #require(state.appShortcuts.last)
+        state.removeAppShortcut(id: shortcut.id)
+        #expect(state.availableAppCatalogItems().contains { $0.id == hulu.id })
+    }
+
+    @Test func duplicateCatalogAndCustomIdentifiersAreRejected() throws {
+        let state = AppState(appShortcutStore: MemoryAppShortcutStore())
+        let youtube = try #require(RemoteAppCatalogItem.verified.first)
+
+        #expect(!state.addAppShortcut(youtube.makeShortcut()))
+        #expect(!state.addAppShortcut(RemoteAppShortcut(
+            displayName: "YouTube duplicate",
+            launchIdentifier: "  HTTPS://WWW.YOUTUBE.COM/  ",
+            icon: .initials("Y")
+        )))
+        #expect(state.appShortcuts.count == 4)
+    }
+
     @Test func forwardsCommandsAndRecordsSuccessfulAction() async {
         let handler = RecordingCommandHandler()
         let state = AppState(
@@ -22,12 +119,12 @@ struct AppStateTests {
             pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
         )
 
-        await state.send(.volumeUp)
+        let error = await state.send(.volumeUp)
 
         #expect(await handler.commands == [.volumeUp])
         #expect(state.lastCommand == .volumeUp)
         #expect(state.lastActionDescription == "Volume up")
-        #expect(state.commandError == nil)
+        #expect(error == nil)
     }
 
     @Test func preservesLastCommandWhenSendingFails() async {
@@ -38,10 +135,28 @@ struct AppStateTests {
             pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [RemoteDevice.placeholder.id])
         )
 
-        await state.send(.power)
+        let error = await state.send(.power)
 
         #expect(state.lastCommand == nil)
-        #expect(state.commandError == TestFailure.command.localizedDescription)
+        #expect(error == TestFailure.command.localizedDescription)
+    }
+
+    @Test func rejectedAppLaunchShowsInstallGuidanceWithShortcutName() async {
+        let state = AppState(
+            devices: [.placeholder],
+            selectedDeviceID: RemoteDevice.placeholder.id,
+            commandHandler: AppLaunchRejectedCommandHandler(),
+            pairingCredentials: StubPairingCredentials(
+                pairedDeviceIDs: [RemoteDevice.placeholder.id]
+            )
+        )
+
+        let error = await state.send(.launchApp("https://www.youtube.com/"))
+
+        #expect(
+            error
+                == "Couldn’t open YouTube. Make sure the app is installed on your TV, then try again."
+        )
     }
 
     @Test func discoveryReplacesDevicesAndSelectsFirstResult() async {
@@ -85,10 +200,10 @@ struct AppStateTests {
             pairingCredentials: StubPairingCredentials(pairedDeviceIDs: [])
         )
 
-        await state.send(.home)
+        let error = await state.send(.home)
 
         #expect(await handler.commands.isEmpty)
-        #expect(state.commandError == "Pair this TV from Devices before using the remote.")
+        #expect(error == "Pair this TV from Devices before using the remote.")
     }
 
     @Test func discoveryExposesFailureWithoutDiscardingDevices() async {
@@ -222,6 +337,25 @@ struct AppStateTests {
     private func settle() async {
         for _ in 0..<10 { await Task.yield() }
     }
+
+    private func testShortcut(_ index: Int) -> RemoteAppShortcut {
+        RemoteAppShortcut(
+            displayName: "App \(index)",
+            launchIdentifier: "https://example.com/app/\(index)",
+            icon: .initials("A")
+        )
+    }
+}
+
+@MainActor
+private final class MemoryAppShortcutStore: AppShortcutStoring {
+    var shortcuts: [RemoteAppShortcut]?
+
+    func load() -> [RemoteAppShortcut]? { shortcuts }
+
+    func save(_ shortcuts: [RemoteAppShortcut]) {
+        self.shortcuts = shortcuts
+    }
 }
 
 private actor RecordingCommandHandler: RemoteCommandHandling {
@@ -235,6 +369,12 @@ private actor RecordingCommandHandler: RemoteCommandHandling {
 private struct FailingCommandHandler: RemoteCommandHandling {
     func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
         throw TestFailure.command
+    }
+}
+
+private struct AppLaunchRejectedCommandHandler: RemoteCommandHandling {
+    func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
+        throw RemoteCommandTransportError.appLaunchRejected
     }
 }
 

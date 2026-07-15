@@ -15,7 +15,11 @@ struct DPadView: View {
         }
     }
 
-    private var spacer: some View { Color.clear.frame(minHeight: 52).accessibilityHidden(true) }
+    private var spacer: some View {
+        Color.clear
+            .frame(height: 52)
+            .accessibilityHidden(true)
+    }
     private func button(_ command: RemoteCommand, _ image: String) -> some View {
         RemoteButton(command, systemImage: image, action: action)
     }

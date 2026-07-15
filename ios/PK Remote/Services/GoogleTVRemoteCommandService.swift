@@ -11,6 +11,7 @@ nonisolated enum RemoteCommandTransportError: LocalizedError {
     case certificateChanged
     case pairingRejected
     case unsupportedCommand
+    case appLaunchRejected
     case protocolFailure
 
     var errorDescription: String? {
@@ -27,6 +28,8 @@ nonisolated enum RemoteCommandTransportError: LocalizedError {
             "The TV no longer accepts this app's pairing certificate. Pair the TV again."
         case .unsupportedCommand:
             "This remote command is not supported."
+        case .appLaunchRejected:
+            "Couldn’t open this app. Make sure it is installed on your TV, then try again."
         case .protocolFailure:
             "The TV returned an unexpected remote response."
         }
@@ -38,6 +41,7 @@ actor GoogleTVRemoteCommandService: RemoteCommandHandling {
     private let identityStore: PairingIdentityStore
     private let credentialStore: PairingCredentialStore
     private var sessions: [RemoteDevice.ID: GoogleTVRemoteSession] = [:]
+    private var settingsPressesInProgress: Set<RemoteDevice.ID> = []
 
     init(
         identityStore: PairingIdentityStore = PairingIdentityStore(),
@@ -48,10 +52,25 @@ actor GoogleTVRemoteCommandService: RemoteCommandHandling {
     }
 
     func send(_ command: RemoteCommand, to device: RemoteDevice) async throws {
+        let isSettingsLongPress = command == .openGoogleTVSettings
+        if isSettingsLongPress {
+            guard settingsPressesInProgress.insert(device.id).inserted else { return }
+        }
+        defer {
+            if isSettingsLongPress { settingsPressesInProgress.remove(device.id) }
+        }
+
         let session = try await session(for: device)
         do {
             try await session.send(command)
         } catch {
+            if !command.retriesAfterTransportFailure {
+                if error.isPairingInvalidation {
+                    sessions.removeValue(forKey: device.id)
+                    session.cancel()
+                }
+                throw error
+            }
             sessions.removeValue(forKey: device.id)
             session.cancel()
             if error.isPairingInvalidation {
@@ -108,6 +127,7 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
     private var monitorTask: Task<Void, Never>?
     private let health = RemoteSessionHealth()
     private let imeState = RemoteIMEState()
+    private let appLaunchFeedback = RemoteAppLaunchFeedback()
 
     var isUsable: Bool { health.isUsable }
 
@@ -198,6 +218,30 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
                     fieldCounter: counters.fieldCounter
                 )
             )
+        case .launchApp(let identifier):
+            await appLaunchFeedback.begin()
+            do {
+                try await sendPayload(RemoteProtocolCodec.appLink(identifier))
+                try await appLaunchFeedback.waitForImmediateResult()
+            } catch {
+                await appLaunchFeedback.cancel()
+                throw error
+            }
+        case .openGoogleTVSettings:
+            try await sendPayload(
+                RemoteProtocolCodec.key(command, direction: .startLong)
+            )
+            do {
+                try await Task.sleep(nanoseconds: 650_000_000)
+            } catch {
+                try? await sendPayload(
+                    RemoteProtocolCodec.key(command, direction: .endLong)
+                )
+                throw error
+            }
+            try await sendPayload(
+                RemoteProtocolCodec.key(command, direction: .endLong)
+            )
         default:
             try await sendPayload(RemoteProtocolCodec.key(command))
         }
@@ -251,6 +295,18 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
             return true
         case .setActive(let value):
             try await sendPayload(RemoteProtocolCodec.setActive(value))
+        case .remoteError(let isError, let originalField):
+            print(
+                "[RemoteTransport] TV response for field \(originalField ?? -1): "
+                    + (isError ? "rejected" : "accepted")
+            )
+            if originalField == 90 {
+                if isError {
+                    await appLaunchFeedback.reject()
+                } else {
+                    await appLaunchFeedback.acknowledge()
+                }
+            }
         case .ping(let value):
             try await sendPayload(RemoteProtocolCodec.pingResponse(value))
         case .imeBatchEdit(let imeCounter, let fieldCounter):
@@ -334,6 +390,79 @@ nonisolated private final class GoogleTVRemoteSession: @unchecked Sendable {
                 continuation.resume(throwing: error)
             }
         }
+    }
+}
+
+private actor RemoteAppLaunchFeedback {
+    private var isPending = false
+    private var wasRejected = false
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var timeoutTask: Task<Void, Never>?
+
+    func begin() {
+        finishPendingIfNeeded()
+        isPending = true
+        wasRejected = false
+    }
+
+    func waitForImmediateResult() async throws {
+        guard isPending else { return }
+        if wasRejected {
+            isPending = false
+            throw RemoteCommandTransportError.appLaunchRejected
+        }
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            timeoutTask = Task {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                self.accept()
+            }
+        }
+    }
+
+    func reject() {
+        guard isPending else { return }
+        wasRejected = true
+        guard let continuation else { return }
+        timeoutTask?.cancel()
+        clear()
+        continuation.resume(throwing: RemoteCommandTransportError.appLaunchRejected)
+    }
+
+    func acknowledge() {
+        accept()
+    }
+
+    func cancel() {
+        guard let continuation else {
+            clear()
+            return
+        }
+        clear()
+        continuation.resume(throwing: CancellationError())
+    }
+
+    private func accept() {
+        guard isPending, let continuation else { return }
+        clear()
+        continuation.resume()
+    }
+
+    private func finishPendingIfNeeded() {
+        guard let continuation else {
+            clear()
+            return
+        }
+        clear()
+        continuation.resume()
+    }
+
+    private func clear() {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        continuation = nil
+        isPending = false
+        wasRejected = false
     }
 }
 

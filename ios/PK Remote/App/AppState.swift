@@ -4,6 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class AppState {
+    static let maximumAppShortcutCount = 8
+
     enum DiscoveryState: Equatable {
         case idle
         case searching
@@ -14,13 +16,14 @@ final class AppState {
     var selectedDeviceID: RemoteDevice.ID?
     private(set) var discoveryState: DiscoveryState = .idle
     private(set) var lastCommand: RemoteCommand?
-    private(set) var commandError: String?
     private(set) var pairingStates: [RemoteDevice.ID: DevicePairingState] = [:]
+    private(set) var appShortcuts: [RemoteAppShortcut]
 
     private let commandHandler: any RemoteCommandHandling
     private let deviceDiscovery: any DeviceDiscovering
     private let pairingService: any DevicePairingService
     private let pairingCredentials: any PairingCredentialChecking
+    private let appShortcutStore: any AppShortcutStoring
 
     init(
         devices: [RemoteDevice] = [],
@@ -28,14 +31,26 @@ final class AppState {
         commandHandler: (any RemoteCommandHandling)? = nil,
         deviceDiscovery: (any DeviceDiscovering)? = nil,
         pairingService: (any DevicePairingService)? = nil,
-        pairingCredentials: (any PairingCredentialChecking)? = nil
+        pairingCredentials: (any PairingCredentialChecking)? = nil,
+        appShortcutStore: (any AppShortcutStoring)? = nil
     ) {
+        let shortcutStore = appShortcutStore ?? UserDefaultsAppShortcutStore()
+        let storedShortcuts = shortcutStore.load()
+        let initialShortcuts = Array(
+            (storedShortcuts ?? RemoteAppShortcut.defaults)
+                .prefix(Self.maximumAppShortcutCount)
+        )
         self.devices = devices
         self.selectedDeviceID = selectedDeviceID
+        self.appShortcuts = initialShortcuts
         self.commandHandler = commandHandler ?? GoogleTVRemoteCommandService()
         self.deviceDiscovery = deviceDiscovery ?? BonjourDeviceDiscovery()
         self.pairingService = pairingService ?? GoogleTVPairingService()
         self.pairingCredentials = pairingCredentials ?? PairingCredentialStore()
+        self.appShortcutStore = shortcutStore
+        if storedShortcuts == nil {
+            shortcutStore.save(initialShortcuts)
+        }
     }
 
     var selectedDevice: RemoteDevice? {
@@ -48,6 +63,20 @@ final class AppState {
 
     var isSelectedDevicePaired: Bool {
         selectedDevice.map { pairingState(for: $0) == .paired } ?? false
+    }
+
+    var canAddAppShortcut: Bool {
+        appShortcuts.count < Self.maximumAppShortcutCount
+            && !availableAppCatalogItems().isEmpty
+    }
+
+    func availableAppCatalogItems(
+        replacing shortcutID: RemoteAppShortcut.ID? = nil
+    ) -> [RemoteAppCatalogItem] {
+        let occupied = appShortcuts.filter { $0.id != shortcutID }
+        return RemoteAppCatalogItem.verified.filter { item in
+            !occupied.contains { Self.matches($0, catalogItem: item) }
+        }
     }
 
     func select(_ device: RemoteDevice) {
@@ -104,33 +133,77 @@ final class AppState {
         do {
             try pairingCredentials.removePairing(for: device.id)
             pairingStates[device.id] = .unpaired
-            commandError = nil
         } catch {
             pairingStates[device.id] = .failed(error.localizedDescription)
         }
     }
 
-    func send(_ command: RemoteCommand) async {
-        commandError = nil
+    func send(_ command: RemoteCommand) async -> String? {
         guard let selectedDevice else {
-            commandError = "Select a TV before sending a command."
-            return
+            return "Select a TV before sending a command."
         }
         guard pairingState(for: selectedDevice) == .paired else {
-            commandError = "Pair this TV from Devices before using the remote."
-            return
+            return "Pair this TV from Devices before using the remote."
         }
         do {
             try await commandHandler.send(command, to: selectedDevice)
             lastCommand = command
+            return nil
         } catch {
-            commandError = error.localizedDescription
+            let message: String
+            if case .launchApp(let identifier) = command,
+               error.isAppLaunchRejected {
+                let displayName = appShortcuts.first {
+                    Self.normalizedIdentifier($0.launchIdentifier)
+                        == Self.normalizedIdentifier(identifier)
+                }?.displayName ?? "this app"
+                message = "Couldn’t open \(displayName). Make sure the app is installed on your TV, then try again."
+            } else {
+                message = error.localizedDescription
+            }
             if let invalidationMessage = error.pairingInvalidationMessage {
                 await commandHandler.stopSession(for: selectedDevice)
                 try? pairingCredentials.removePairing(for: selectedDevice.id)
                 pairingStates[selectedDevice.id] = .invalidated(invalidationMessage)
             }
+            return message
         }
+    }
+
+    @discardableResult
+    func addAppShortcut(_ shortcut: RemoteAppShortcut) -> Bool {
+        guard canAddAppShortcut,
+              Self.isValid(shortcut),
+              !containsDuplicate(of: shortcut) else { return false }
+        appShortcuts.append(Self.normalized(shortcut))
+        persistAppShortcuts()
+        return true
+    }
+
+    @discardableResult
+    func updateAppShortcut(_ shortcut: RemoteAppShortcut) -> Bool {
+        guard Self.isValid(shortcut),
+              let index = appShortcuts.firstIndex(where: { $0.id == shortcut.id }),
+              !containsDuplicate(of: shortcut, excluding: shortcut.id) else {
+            return false
+        }
+        appShortcuts[index] = Self.normalized(shortcut)
+        persistAppShortcuts()
+        return true
+    }
+
+    func removeAppShortcut(id: RemoteAppShortcut.ID) {
+        appShortcuts.removeAll { $0.id == id }
+        persistAppShortcuts()
+    }
+
+    func moveAppShortcut(id: RemoteAppShortcut.ID, by offset: Int) {
+        guard let source = appShortcuts.firstIndex(where: { $0.id == id }) else { return }
+        let destination = min(max(source + offset, 0), appShortcuts.count - 1)
+        guard source != destination else { return }
+        let shortcut = appShortcuts.remove(at: source)
+        appShortcuts.insert(shortcut, at: destination)
+        persistAppShortcuts()
     }
 
     func startDiscovery() {
@@ -169,6 +242,58 @@ final class AppState {
         return devices.filter { seen.insert($0.id).inserted }
     }
 
+    private func persistAppShortcuts() {
+        appShortcutStore.save(appShortcuts)
+    }
+
+    private func containsDuplicate(
+        of shortcut: RemoteAppShortcut,
+        excluding excludedID: RemoteAppShortcut.ID? = nil
+    ) -> Bool {
+        appShortcuts.contains { existing in
+            existing.id != excludedID && Self.matches(existing, shortcut)
+        }
+    }
+
+    private static func matches(
+        _ lhs: RemoteAppShortcut,
+        _ rhs: RemoteAppShortcut
+    ) -> Bool {
+        if let lhsCatalogID = lhs.catalogID,
+           let rhsCatalogID = rhs.catalogID,
+           lhsCatalogID == rhsCatalogID {
+            return true
+        }
+        return normalizedIdentifier(lhs.launchIdentifier)
+            == normalizedIdentifier(rhs.launchIdentifier)
+    }
+
+    private static func matches(
+        _ shortcut: RemoteAppShortcut,
+        catalogItem: RemoteAppCatalogItem
+    ) -> Bool {
+        shortcut.catalogID == catalogItem.id
+            || normalizedIdentifier(shortcut.launchIdentifier)
+                == normalizedIdentifier(catalogItem.launchIdentifier)
+    }
+
+    private static func normalizedIdentifier(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func isValid(_ shortcut: RemoteAppShortcut) -> Bool {
+        !shortcut.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !shortcut.launchIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private static func normalized(_ shortcut: RemoteAppShortcut) -> RemoteAppShortcut {
+        var shortcut = shortcut
+        shortcut.displayName = shortcut.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        shortcut.launchIdentifier = shortcut.launchIdentifier
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return shortcut
+    }
+
     static var preview: AppState {
         AppState(
             devices: [.placeholder],
@@ -181,6 +306,12 @@ final class AppState {
 }
 
 private extension Error {
+    var isAppLaunchRejected: Bool {
+        guard let error = self as? RemoteCommandTransportError else { return false }
+        if case .appLaunchRejected = error { return true }
+        return false
+    }
+
     var pairingInvalidationMessage: String? {
         guard let error = self as? RemoteCommandTransportError else { return nil }
         return switch error {
