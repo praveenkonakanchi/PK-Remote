@@ -10,6 +10,34 @@ struct RemoteProtocolCodecTests {
         #expect(frame == Data([0x06, 0x52, 0x04, 0x08, 0x03, 0x10, 0x03]))
     }
 
+    @Test func nativeSettingsUsesOrderedLongHomeDirections() throws {
+        let down = RemoteProtocolCodec.frame(
+            try RemoteProtocolCodec.key(.openGoogleTVSettings, direction: .startLong)
+        )
+        let up = RemoteProtocolCodec.frame(
+            try RemoteProtocolCodec.key(.openGoogleTVSettings, direction: .endLong)
+        )
+
+        #expect(down == Data([0x06, 0x52, 0x04, 0x08, 0x03, 0x10, 0x01]))
+        #expect(up == Data([0x06, 0x52, 0x04, 0x08, 0x03, 0x10, 0x02]))
+    }
+
+    @Test func appLaunchUsesRemoteV2AppLinkField() throws {
+        let identifier = "youtube://"
+        let frame = RemoteProtocolCodec.frame(try RemoteProtocolCodec.appLink(identifier))
+
+        #expect(
+            frame
+                == Data([0x0f, 0xd2, 0x05, 0x0c, 0x0a, 0x0a]) + Data(identifier.utf8)
+        )
+    }
+
+    @Test func appLaunchFailureIsNotRetried() {
+        #expect(!RemoteCommand.launchApp("youtube://").retriesAfterTransportFailure)
+        #expect(!RemoteCommand.openGoogleTVSettings.retriesAfterTransportFailure)
+        #expect(RemoteCommand.home.retriesAfterTransportFailure)
+    }
+
     @Test func digitCommandUsesContiguousAndroidKeyCode() throws {
         let payload = try RemoteProtocolCodec.key(.digit(9))
         let frame = RemoteProtocolCodec.frame(payload)
@@ -87,5 +115,17 @@ struct RemoteProtocolCodecTests {
     @Test func omittedSetActiveValueUsesProto3Default() throws {
         #expect(try RemoteProtocolCodec.decode(Data([0x12, 0x00])) == .setActive(0))
         #expect(RemoteProtocolCodec.setActive(0) == Data([0x12, 0x02, 0x08, 0x00]))
+    }
+
+    @Test func remoteErrorIsDecodedForNonBlockingLaunchFeedback() throws {
+        #expect(
+            try RemoteProtocolCodec.decode(Data([0x1a, 0x02, 0x08, 0x01]))
+                == .remoteError(isError: true, originalField: nil)
+        )
+        #expect(
+            try RemoteProtocolCodec.decode(
+                Data([0x1a, 0x05, 0x12, 0x03, 0xd2, 0x05, 0x00])
+            ) == .remoteError(isError: false, originalField: 90)
+        )
     }
 }

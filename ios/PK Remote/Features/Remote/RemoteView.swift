@@ -21,6 +21,11 @@ struct RemoteView: View {
                         RemoteButton(.power, systemImage: "power", action: handle)
                         RemoteButton(.home, systemImage: "house.fill", action: handle)
                         RemoteButton(.back, systemImage: "arrow.uturn.backward", action: handle)
+                        RemoteButton(
+                            .openGoogleTVSettings,
+                            systemImage: "gearshape.fill",
+                            action: handle
+                        )
                     }
                     .disabled(!appState.isSelectedDevicePaired)
                     DPadView(action: handle)
